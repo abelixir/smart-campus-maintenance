@@ -8,14 +8,8 @@ const categorySchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
-    description: {
-      type: String,
-      trim: true,
-    },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 module.exports = mongoose.model('Category', categorySchema);

@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 
@@ -11,20 +13,60 @@ const initialState = {
 };
 
 export default function ComplaintForm() {
+  const navigate = useNavigate();
+  const { token } = useAuth();
   const [formData, setFormData] = useState(initialState);
   const [imageName, setImageName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState({ type: '', message: '' });
 
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    console.log('Complaint submitted:', formData);
-    alert('Complaint submitted successfully.');
-    setFormData(initialState);
-    setImageName('');
+    setLoading(true);
+    setFeedback({ type: '', message: '' });
+
+    try {
+      const response = await fetch('http://localhost:5000/api/complaints', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          category: formData.category,
+          location: formData.location,
+          priority: formData.priority,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.message || 'Unable to submit complaint. Please try again.');
+      }
+
+      setFeedback({ type: 'success', message: 'Complaint submitted successfully.' });
+      setFormData(initialState);
+      setImageName('');
+
+      window.setTimeout(() => {
+        navigate('/my-complaints');
+      }, 600);
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: error.message || 'Something went wrong while submitting the complaint.',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -125,12 +167,24 @@ export default function ComplaintForm() {
         </label>
       </div>
 
+      {feedback.message && (
+        <div
+          className={`rounded-xl border px-3 py-2 text-sm ${
+            feedback.type === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-red-200 bg-red-50 text-red-700'
+          }`}
+        >
+          {feedback.message}
+        </div>
+      )}
+
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <Button type="button" variant="secondary" className="sm:min-w-32">
           Save Draft
         </Button>
-        <Button type="submit" className="sm:min-w-40">
-          Submit Complaint
+        <Button type="submit" className="sm:min-w-40" disabled={loading}>
+          {loading ? 'Submitting...' : 'Submit Complaint'}
         </Button>
       </div>
     </form>

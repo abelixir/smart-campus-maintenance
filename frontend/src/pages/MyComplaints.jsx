@@ -1,38 +1,67 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import Card from '../components/ui/Card';
 import StatusBadge from '../components/ui/StatusBadge';
 
-const complaints = [
-  {
-    id: 'CM-2048',
-    title: 'Broken ceiling light in Chemistry Lab 2',
-    status: 'InProgress',
-    category: 'Electrical',
-    location: 'Science Block',
-    updated: '2 hours ago',
-    priority: 'High',
-  },
-  {
-    id: 'CM-2019',
-    title: 'Water leakage near main cafeteria sink',
-    status: 'Pending',
-    category: 'Plumbing',
-    location: 'Student Center',
-    updated: '1 day ago',
-    priority: 'Medium',
-  },
-  {
-    id: 'CM-1987',
-    title: 'Door access malfunction at Library entrance',
-    status: 'Resolved',
-    category: 'Security',
-    location: 'Central Library',
-    updated: '4 days ago',
-    priority: 'Urgent',
-  },
-];
+const formatDate = (value) => {
+  if (!value) return 'N/A';
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(value));
+};
+
+const getStatusBadgeType = (status) => {
+  if (status === 'InProgress') return 'InProgress';
+  if (status === 'Submitted') return 'Pending';
+  return status;
+};
+
+const getStatusLabel = (status) => {
+  if (status === 'InProgress') return 'In Progress';
+  return status;
+};
 
 export default function MyComplaints() {
+  const { token } = useAuth();
+  const [complaints, setComplaints] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchComplaints = async () => {
+      setLoading(true);
+      setError('');
+
+      try {
+        const response = await fetch('http://localhost:5000/api/complaints/my', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data?.message || 'Unable to load your complaints.');
+        }
+
+        setComplaints(data.complaints || []);
+      } catch (err) {
+        setError(err.message || 'Something went wrong while loading your complaints.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (token) {
+      fetchComplaints();
+    }
+  }, [token]);
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="mb-8 flex items-end justify-between gap-4">
@@ -45,38 +74,69 @@ export default function MyComplaints() {
         </Link>
       </div>
 
-      <div className="space-y-4">
-        {complaints.map((complaint) => (
-          <Card key={complaint.id} className="p-0 overflow-hidden">
-            <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-sm font-semibold text-blue-600">{complaint.id}</span>
-                  <StatusBadge label={complaint.status === 'InProgress' ? 'In Progress' : complaint.status} type={complaint.status === 'InProgress' ? 'InProgress' : complaint.status} />
-                </div>
-                <Link to={`/complaint/${complaint.id}`} className="text-xl font-semibold text-slate-900 hover:text-blue-600">
-                  {complaint.title}
-                </Link>
-              </div>
+      {loading ? (
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-600 shadow-sm">
+          Loading your complaints...
+        </div>
+      ) : error ? (
+        <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-sm text-red-700 shadow-sm">
+          {error}
+        </div>
+      ) : complaints.length === 0 ? (
+        <Card className="p-8 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h8M8 12h8M8 17h5M5 7.5A2.5 2.5 0 0 1 7.5 5h9A2.5 2.5 0 0 1 19 7.5v9A2.5 2.5 0 0 1 16.5 19h-9A2.5 2.5 0 0 1 5 16.5v-9Z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-slate-900">No complaints yet</h2>
+          <p className="mt-2 text-sm text-slate-600">Your submitted reports will appear here once you file a new complaint.</p>
+          <Link to="/submit-complaint" className="mt-6 inline-flex items-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
+            Submit your first complaint
+          </Link>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {complaints.map((complaint) => {
+            const complaintId = complaint._id || complaint.id;
+            const categoryName = complaint.category?.name || complaint.category || 'Uncategorized';
+            const locationName = complaint.location?.name || complaint.location || 'Not specified';
+            const statusLabel = getStatusLabel(complaint.status);
+            const statusType = getStatusBadgeType(complaint.status);
 
-              <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Category</p>
-                  <p className="mt-1 font-medium text-slate-700">{complaint.category}</p>
+            return (
+              <Card key={complaintId} className="overflow-hidden p-0">
+                <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="text-sm font-semibold text-blue-600">{complaintId.slice ? complaintId.slice(-6).toUpperCase() : complaintId}</span>
+                      <StatusBadge label={statusLabel} type={statusType} />
+                    </div>
+                    <Link to={`/complaint/${complaintId}`} className="text-xl font-semibold text-slate-900 hover:text-blue-600">
+                      {complaint.title}
+                    </Link>
+                  </div>
+
+                  <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Category</p>
+                      <p className="mt-1 font-medium text-slate-700">{categoryName}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Location</p>
+                      <p className="mt-1 font-medium text-slate-700">{locationName}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Submitted</p>
+                      <p className="mt-1 font-medium text-slate-700">{formatDate(complaint.createdAt)}</p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Location</p>
-                  <p className="mt-1 font-medium text-slate-700">{complaint.location}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Updated</p>
-                  <p className="mt-1 font-medium text-slate-700">{complaint.updated}</p>
-                </div>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
