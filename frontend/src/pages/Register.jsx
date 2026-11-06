@@ -1,8 +1,55 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 
 export default function Register() {
+  const navigate = useNavigate();
+  const { register } = useAuth();
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (event) => {
+    const { id, value } = event.target;
+    setFormData((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await register({
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        email: formData.email,
+        password: formData.password,
+      });
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message || 'Unable to create your account. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-[calc(100vh-160px)] items-center justify-center px-4 py-12">
       <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -16,17 +63,63 @@ export default function Register() {
           <p className="mt-2 text-sm text-slate-600">Join CampusCare to report and track issues.</p>
         </div>
 
-        <form className="space-y-5">
+        <form className="space-y-5" onSubmit={handleSubmit}>
           <div className="grid gap-5 md:grid-cols-2">
-            <Input label="First name" id="firstName" placeholder="John" required />
-            <Input label="Last name" id="lastName" placeholder="Doe" required />
+            <Input
+              label="First name"
+              id="firstName"
+              placeholder="John"
+              required
+              value={formData.firstName}
+              onChange={handleChange}
+            />
+            <Input
+              label="Last name"
+              id="lastName"
+              placeholder="Doe"
+              required
+              value={formData.lastName}
+              onChange={handleChange}
+            />
           </div>
 
-          <Input label="Email address" id="email" type="email" placeholder="you@example.com" required />
-          <Input label="Password" id="password" type="password" placeholder="Create a password" required />
-          <Input label="Confirm password" id="confirmPassword" type="password" placeholder="Re-enter your password" required />
+          <Input
+            label="Email address"
+            id="email"
+            type="email"
+            placeholder="you@example.com"
+            required
+            value={formData.email}
+            onChange={handleChange}
+          />
+          <Input
+            label="Password"
+            id="password"
+            type="password"
+            placeholder="Create a password"
+            required
+            value={formData.password}
+            onChange={handleChange}
+          />
+          <Input
+            label="Confirm password"
+            id="confirmPassword"
+            type="password"
+            placeholder="Re-enter your password"
+            required
+            value={formData.confirmPassword}
+            onChange={handleChange}
+          />
 
-          <Button className="w-full" size="lg">Create account</Button>
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <Button className="w-full" size="lg" type="submit" disabled={loading}>
+            {loading ? 'Creating account...' : 'Create account'}
+          </Button>
         </form>
 
         <p className="mt-6 text-center text-sm text-slate-600">

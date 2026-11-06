@@ -1,8 +1,45 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 
 export default function Login() {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (event) => {
+    const { id, value } = event.target;
+    setFormData((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      await login({
+        email: formData.email,
+        password: formData.password,
+      });
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message || 'Unable to sign in. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-[calc(100vh-160px)] items-center justify-center px-4 py-12">
       <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -16,9 +53,25 @@ export default function Login() {
           <p className="mt-2 text-sm text-slate-600">Sign in to manage campus issues efficiently.</p>
         </div>
 
-        <form className="space-y-5">
-          <Input label="Email address" id="email" type="email" placeholder="you@example.com" required />
-          <Input label="Password" id="password" type="password" placeholder="Enter your password" required />
+        <form className="space-y-5" onSubmit={handleSubmit}>
+          <Input
+            label="Email address"
+            id="email"
+            type="email"
+            placeholder="you@example.com"
+            required
+            value={formData.email}
+            onChange={handleChange}
+          />
+          <Input
+            label="Password"
+            id="password"
+            type="password"
+            placeholder="Enter your password"
+            required
+            value={formData.password}
+            onChange={handleChange}
+          />
 
           <div className="flex items-center justify-between text-sm">
             <label className="inline-flex items-center gap-2 text-slate-600">
@@ -30,7 +83,15 @@ export default function Login() {
             </Link>
           </div>
 
-          <Button className="w-full" size="lg">Sign In</Button>
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <Button className="w-full" size="lg" type="submit" disabled={loading}>
+            {loading ? 'Signing In...' : 'Sign In'}
+          </Button>
         </form>
       </div>
     </div>
