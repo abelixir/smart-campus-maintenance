@@ -1,6 +1,16 @@
 const Complaint = require('../models/Complaint');
 const Category = require('../models/Category');
 const Location = require('../models/Location');
+const User = require('../models/User');
+
+const populateComplaint = (query) => {
+  return query
+    .populate('category', 'name')
+    .populate('location', 'name')
+    .populate('reporter', 'name email role')
+    .populate('assignedTo', 'name email role')
+    .populate('statusHistory.changedBy', 'name email role');
+};
 
 // @desc    Create new complaint
 // @route   POST /api/complaints
@@ -15,13 +25,11 @@ const createComplaint = async (req, res, next) => {
       });
     }
 
-    // Find or create Category
     let categoryDoc = await Category.findOne({ name: category });
     if (!categoryDoc) {
       categoryDoc = await Category.create({ name: category });
     }
 
-    // Find or create Location
     let locationDoc = await Location.findOne({ name: location });
     if (!locationDoc) {
       locationDoc = await Location.create({ name: location });
@@ -45,11 +53,7 @@ const createComplaint = async (req, res, next) => {
       ],
     });
 
-    const populatedComplaint = await Complaint.findById(complaint._id)
-      .populate('category', 'name')
-      .populate('location', 'name')
-      .populate('reporter', 'name email')
-      .populate('assignedTo', 'name email');
+    const populatedComplaint = await populateComplaint(Complaint.findById(complaint._id));
 
     res.status(201).json({
       message: 'Complaint submitted successfully',
@@ -65,11 +69,9 @@ const createComplaint = async (req, res, next) => {
 // @access  Private
 const getMyComplaints = async (req, res, next) => {
   try {
-    const complaints = await Complaint.find({ reporter: req.user._id })
-      .populate('category', 'name')
-      .populate('location', 'name')
-      .populate('assignedTo', 'name email')
-      .sort({ createdAt: -1 });
+    const complaints = await populateComplaint(
+      Complaint.find({ reporter: req.user._id }).sort({ createdAt: -1 })
+    );
 
     res.status(200).json({
       count: complaints.length,
@@ -80,17 +82,24 @@ const getMyComplaints = async (req, res, next) => {
   }
 };
 
-// @desc    Get all complaints (for supervisor/admin)
+// @desc    Get complaints for current user based on role
 // @route   GET /api/complaints
-// @access  Private (supervisor, admin)
+// @access  Private
 const getComplaints = async (req, res, next) => {
   try {
-    const complaints = await Complaint.find()
-      .populate('category', 'name')
-      .populate('location', 'name')
-      .populate('reporter', 'name email')
-      .populate('assignedTo', 'name email')
-      .sort({ createdAt: -1 });
+    let query = {};
+
+    if (req.user.role === 'reporter') {
+      query.reporter = req.user._id;
+    }
+
+    if (req.user.role === 'technician') {
+      query.assignedTo = req.user._id;
+    }
+
+    const complaints = await populateComplaint(
+      Complaint.find(query).sort({ createdAt: -1 })
+    );
 
     res.status(200).json({
       count: complaints.length,
@@ -106,18 +115,106 @@ const getComplaints = async (req, res, next) => {
 // @access  Private
 const getComplaintById = async (req, res, next) => {
   try {
-    const complaint = await Complaint.findById(req.params.id)
-      .populate('category', 'name')
-      .populate('location', 'name')
-      .populate('reporter', 'name email')
-      .populate('assignedTo', 'name email')
-      .populate('statusHistory.changedBy', 'name');
+    const complaint = await populateComplaint(Complaint.findById(req.params.id));
 
     if (!complaint) {
       return res.status(404).json({ message: 'Complaint not found' });
     }
 
+    if (req.user.role === 'reporter' && complaint.reporter?._id?.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'You are not authorized to view this complaint' });
+    }
+
+    if (req.user.role === 'technician' && complaint.assignedTo?._id?.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'You are not assigned to this complaint' });
+    }
+
     res.status(200).json(complaint);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update complaint status
+// @route   PATCH /api/complaints/:id/status
+// @access  Private (technician, supervisor, admin)
+const updateComplaintStatus = async (req, res, next) => {
+  try {
+    const { status, note } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ message: 'Status is required' });
+    }
+
+    const validStatuses = ['Submitted', 'Assigned', 'In Progress', 'Resolved', 'Closed', 'Rejected'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid complaint status' });
+    }
+
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) {
+      return res.status(404).json({ message: 'Complaint not found' });
+    }
+
+    if (req.user.role === 'technician' && complaint.assignedTo?.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'You can only update complaints assigned to you' });
+    }
+
+    complaint.status = status;
+    complaint.statusHistory.push({
+      status,
+      changedBy: req.user._id,
+      note: note || `Status updated to ${status}`,
+    });
+
+    await complaint.save();
+
+    const updatedComplaint = await populateComplaint(Complaint.findById(complaint._id));
+    res.status(200).json({
+      message: 'Complaint status updated successfully',
+      complaint: updatedComplaint,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Assign complaint to technician
+// @route   PATCH /api/complaints/:id/assign
+// @access  Private (supervisor, admin)
+const assignComplaintToTechnician = async (req, res, next) => {
+  try {
+    const { technicianId, note } = req.body;
+
+    if (!technicianId) {
+      return res.status(400).json({ message: 'Technician ID is required' });
+    }
+
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) {
+      return res.status(404).json({ message: 'Complaint not found' });
+    }
+
+    const technician = await User.findById(technicianId);
+    if (!technician || technician.role !== 'technician') {
+      return res.status(400).json({ message: 'A valid technician is required' });
+    }
+
+    complaint.assignedTo = technician._id;
+    complaint.status = 'Assigned';
+    complaint.statusHistory.push({
+      status: 'Assigned',
+      changedBy: req.user._id,
+      note: note || `Assigned to ${technician.name}`,
+    });
+
+    await complaint.save();
+
+    const updatedComplaint = await populateComplaint(Complaint.findById(complaint._id));
+    res.status(200).json({
+      message: 'Complaint assigned successfully',
+      complaint: updatedComplaint,
+    });
   } catch (error) {
     next(error);
   }
@@ -128,4 +225,6 @@ module.exports = {
   getMyComplaints,
   getComplaints,
   getComplaintById,
+  updateComplaintStatus,
+  assignComplaintToTechnician,
 };

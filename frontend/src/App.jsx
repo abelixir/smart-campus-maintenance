@@ -3,6 +3,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Footer from './components/layout/Footer';
 import Navbar from './components/layout/Navbar';
 import { AuthProvider } from './context/AuthContext';
+import Admin from './pages/Admin';
 import ComplaintDetails from './pages/ComplaintDetails';
 import Dashboard from './pages/Dashboard';
 import Home from './pages/Home';
@@ -52,6 +53,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ComplaintDetails />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute>
+                    <Admin />
                   </ProtectedRoute>
                 }
               />

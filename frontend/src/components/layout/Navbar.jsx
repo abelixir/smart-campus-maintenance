@@ -4,13 +4,26 @@ import { useAuth } from '../../context/AuthContext';
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
 
+  const role = user?.role || 'reporter';
+
   const navItems = [
     { label: 'Home', path: '/' },
     ...(isAuthenticated
       ? [
           { label: 'Dashboard', path: '/dashboard' },
-          { label: 'Submit Complaint', path: '/submit-complaint' },
-          { label: 'My Complaints', path: '/my-complaints' },
+          ...(role === 'reporter'
+            ? [
+                { label: 'Submit Complaint', path: '/submit-complaint' },
+                { label: 'My Complaints', path: '/my-complaints' },
+              ]
+            : []),
+          ...(role === 'technician' ? [{ label: 'My Assignments', path: '/dashboard' }] : []),
+          ...(role === 'supervisor' || role === 'admin'
+            ? [
+                { label: 'Admin', path: '/admin' },
+                { label: 'My Complaints', path: '/my-complaints' },
+              ]
+            : []),
         ]
       : []),
   ];
