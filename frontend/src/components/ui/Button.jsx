@@ -1,8 +1,8 @@
 const variants = {
-  primary: 'bg-blue-600 text-white shadow-sm hover:bg-blue-700',
-  secondary: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50',
+  primary: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-[0_12px_30px_rgba(37,99,235,0.25)] hover:from-blue-500 hover:to-indigo-500',
+  secondary: 'border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50',
   ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-  danger: 'bg-red-600 text-white shadow-sm hover:bg-red-700',
+  danger: 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-[0_12px_30px_rgba(220,38,38,0.2)] hover:from-red-500 hover:to-rose-500',
 };
 
 const sizes = {
@@ -22,7 +22,7 @@ export default function Button({
   return (
     <button
       type={type}
-      className={`inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`inline-flex items-center justify-center rounded-xl font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant]} ${sizes[size]} ${className}`}
       {...props}
     >
       {children}

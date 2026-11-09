@@ -10,6 +10,10 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  --brand-primary: #2563eb;
+  --brand-primary-soft: #dbeafe;
+  --brand-secondary: #0f172a;
+  --brand-surface: rgba(255, 255, 255, 0.72);
 }
 
 * {
@@ -24,7 +28,12 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #f8fafc;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%);
+  color: #0f172a;
+}
+
+#root {
+  min-height: 100vh;
 }
 
 a {
@@ -36,4 +45,25 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+::selection {
+  background: rgba(37, 99, 235, 0.18);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.8);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.9);
 }

@@ -59,7 +59,10 @@ export default function ComplaintDetails() {
   if (loading) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
-        <Card className="p-8 text-center text-sm text-slate-600">Loading complaint details...</Card>
+        <Card className="p-10 text-center text-sm text-slate-600">
+          <div className="mx-auto mb-4 h-10 w-10 animate-pulse rounded-full bg-blue-100" />
+          Loading complaint details...
+        </Card>
       </div>
     );
   }
@@ -80,17 +83,19 @@ export default function ComplaintDetails() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-600">Complaint details</p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-900">{complaint.title}</h1>
+      <div className="mb-8 rounded-[30px] border border-slate-200 bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.04)] backdrop-blur-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-600">Complaint details</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-[-0.04em] text-slate-900">{complaint.title}</h1>
+          </div>
+          <Link
+            to={user?.role === 'reporter' ? '/my-complaints' : '/dashboard'}
+            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+          >
+            Back to complaints
+          </Link>
         </div>
-        <Link
-          to={user?.role === 'reporter' ? '/my-complaints' : '/dashboard'}
-          className="inline-flex items-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-        >
-          Back to complaints
-        </Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.5fr_0.9fr]">
@@ -101,18 +106,18 @@ export default function ComplaintDetails() {
             <StatusBadge label={complaint.priority} type={complaint.priority} />
           </div>
 
-          <div className="space-y-4 text-sm text-slate-600">
+          <div className="space-y-4 text-sm leading-7 text-slate-600">
             <p>{complaint.description}</p>
           </div>
 
           <div className="mt-8 space-y-4 border-t border-slate-200 pt-6">
             <h2 className="text-lg font-semibold text-slate-900">Status history</h2>
             {(complaint.statusHistory || []).map((entry, index) => (
-              <div key={`${entry.status}-${index}`} className="flex gap-3 rounded-xl bg-slate-50 p-3">
+              <div key={`${entry.status}-${index}`} className="flex gap-3 rounded-2xl bg-slate-50 p-3">
                 <div className="mt-1 h-2.5 w-2.5 rounded-full bg-blue-600" />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-slate-800">{entry.status}</p>
-                  <p className="mt-1 text-sm text-slate-600">{entry.note || 'Updated'} </p>
+                  <p className="mt-1 text-sm text-slate-600">{entry.note || 'Updated'}</p>
                   <p className="mt-1 text-xs text-slate-500">{formatDate(entry.changedAt)} by {entry.changedBy?.name || 'System'}</p>
                 </div>
               </div>

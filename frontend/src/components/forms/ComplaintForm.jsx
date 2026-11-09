@@ -70,7 +70,7 @@ export default function ComplaintForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+    <form onSubmit={handleSubmit} className="space-y-6 rounded-[28px] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.04)] backdrop-blur-sm sm:p-8">
       <div className="grid gap-6 md:grid-cols-2">
         <Input
           label="Complaint Title"
@@ -91,7 +91,7 @@ export default function ComplaintForm() {
             name="category"
             value={formData.category}
             onChange={handleChange}
-            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.75 text-sm text-slate-800 shadow-sm transition focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
           >
             <option>Electrical</option>
             <option>Plumbing</option>
@@ -115,7 +115,7 @@ export default function ComplaintForm() {
           value={formData.description}
           onChange={handleChange}
           placeholder="Provide detailed information about the issue, impact, and any relevant observations."
-          className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
+          className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.75 text-sm text-slate-800 placeholder:text-slate-400 shadow-sm transition focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
           required
         />
       </div>
@@ -140,7 +140,7 @@ export default function ComplaintForm() {
             name="priority"
             value={formData.priority}
             onChange={handleChange}
-            className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.75 text-sm text-slate-800 shadow-sm transition focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
           >
             <option>Low</option>
             <option>Medium</option>
@@ -154,8 +154,8 @@ export default function ComplaintForm() {
         <label htmlFor="photo" className="block text-sm font-medium text-slate-700">
           Photo Upload
         </label>
-        <label className="flex cursor-pointer items-center justify-between rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600 transition hover:border-blue-300 hover:bg-blue-50">
-          <span>{imageName || 'Upload a reference image'}</span>
+        <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600 transition hover:border-blue-300 hover:bg-blue-50">
+          <span className="truncate">{imageName || 'Upload a reference image'}</span>
           <span className="rounded-lg bg-white px-3 py-1.5 font-medium text-slate-700 shadow-sm">Browse</span>
           <input
             id="photo"

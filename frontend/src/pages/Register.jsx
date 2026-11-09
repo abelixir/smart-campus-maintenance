@@ -51,16 +51,15 @@ export default function Register() {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-160px)] items-center justify-center px-4 py-12">
-      <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+    <div className="mx-auto flex min-h-[70vh] max-w-2xl items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+      <div className="w-full rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)] backdrop-blur-sm sm:p-8">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-sm">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-[0_12px_30px_rgba(37,99,235,0.25)]">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7">
               <path strokeLinecap="round" strokeLinejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8 10v-2a4 4 0 0 0-3-3.87M20 3.13a4 4 0 0 1 0 7.75" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900">Create your account</h1>
-          <p className="mt-2 text-sm text-slate-600">Join CampusCare to report and track issues.</p>
+          <h1 className="text-3xl font-bold tracking-[-0.04em] text-slate-900">Create your account</h1>
         </div>
 
         <form className="space-y-5" onSubmit={handleSubmit}>
