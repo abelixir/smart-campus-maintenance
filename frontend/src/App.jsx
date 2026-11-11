@@ -33,12 +33,12 @@ function AppShell() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
 
-              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/submit-complaint" element={<ProtectedRoute><SubmitComplaint /></ProtectedRoute>} />
-              <Route path="/my-complaints" element={<ProtectedRoute><MyComplaints /></ProtectedRoute>} />
-              <Route path="/complaint/:id" element={<ProtectedRoute><ComplaintDetails /></ProtectedRoute>} />
-              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-              <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['reporter', 'technician', 'supervisor', 'admin']}><Dashboard /></ProtectedRoute>} />
+              <Route path="/submit-complaint" element={<ProtectedRoute allowedRoles={['reporter']}><SubmitComplaint /></ProtectedRoute>} />
+              <Route path="/my-complaints" element={<ProtectedRoute allowedRoles={['reporter']}><MyComplaints /></ProtectedRoute>} />
+              <Route path="/complaint/:id" element={<ProtectedRoute allowedRoles={['reporter', 'technician', 'supervisor', 'admin']}><ComplaintDetails /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute allowedRoles={['reporter', 'technician', 'supervisor', 'admin']}><Profile /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><Admin /></ProtectedRoute>} />
 
               <Route path="*" element={<Home />} />
             </Routes>
@@ -80,12 +80,12 @@ function AppShell() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
 
-              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/submit-complaint" element={<ProtectedRoute><SubmitComplaint /></ProtectedRoute>} />
-              <Route path="/my-complaints" element={<ProtectedRoute><MyComplaints /></ProtectedRoute>} />
-              <Route path="/complaint/:id" element={<ProtectedRoute><ComplaintDetails /></ProtectedRoute>} />
-              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-              <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['reporter', 'technician', 'supervisor', 'admin']}><Dashboard /></ProtectedRoute>} />
+              <Route path="/submit-complaint" element={<ProtectedRoute allowedRoles={['reporter']}><SubmitComplaint /></ProtectedRoute>} />
+              <Route path="/my-complaints" element={<ProtectedRoute allowedRoles={['reporter']}><MyComplaints /></ProtectedRoute>} />
+              <Route path="/complaint/:id" element={<ProtectedRoute allowedRoles={['reporter', 'technician', 'supervisor', 'admin']}><ComplaintDetails /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute allowedRoles={['reporter', 'technician', 'supervisor', 'admin']}><Profile /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><Admin /></ProtectedRoute>} />
 
               <Route path="*" element={<Home />} />
             </Routes>

@@ -1,6 +1,8 @@
 const Complaint = require('../models/Complaint');
 const User = require('../models/User');
 
+const ADMIN_MANAGED_ROLES = ['technician', 'supervisor', 'admin'];
+
 const getDashboardStats = async (req, res, next) => {
   try {
     const [totalComplaints, resolvedComplaints, pendingComplaints, users] = await Promise.all([
@@ -50,14 +52,14 @@ const getUsers = async (req, res, next) => {
 const createUser = async (req, res, next) => {
   try {
     const { name, email, password, role } = req.body;
-    const validRoles = ['reporter', 'technician', 'supervisor', 'admin'];
+    const requestedRole = role || 'technician';
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email, and password are required' });
     }
 
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({ message: 'Invalid role provided' });
+    if (!ADMIN_MANAGED_ROLES.includes(requestedRole)) {
+      return res.status(400).json({ message: 'Only technician, supervisor, and admin roles can be created by an admin' });
     }
 
     const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -69,7 +71,7 @@ const createUser = async (req, res, next) => {
       name,
       email: email.toLowerCase(),
       password,
-      role,
+      role: requestedRole,
     });
 
     res.status(201).json({
@@ -89,10 +91,9 @@ const createUser = async (req, res, next) => {
 const updateUserRole = async (req, res, next) => {
   try {
     const { role } = req.body;
-    const validRoles = ['reporter', 'technician', 'supervisor', 'admin'];
 
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({ message: 'Invalid role provided' });
+    if (!ADMIN_MANAGED_ROLES.includes(role)) {
+      return res.status(400).json({ message: 'Only technician, supervisor, and admin roles can be assigned by an admin' });
     }
 
     const user = await User.findById(req.params.id);
@@ -117,9 +118,32 @@ const updateUserRole = async (req, res, next) => {
   }
 };
 
+const deleteUser = async (req, res, next) => {
+  try {
+    if (req.user._id.toString() === req.params.id) {
+      return res.status(400).json({ message: 'You cannot delete your own account from the admin panel' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    await user.deleteOne();
+
+    res.status(200).json({
+      message: 'User deleted successfully',
+      userId: user._id,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getUsers,
   createUser,
   updateUserRole,
+  deleteUser,
 };

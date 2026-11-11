@@ -26,10 +26,21 @@ const getStatusLabel = (status) => {
 };
 
 export default function MyComplaints() {
-  const { token } = useAuth();
+  const { user, token } = useAuth();
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  if (user?.role !== 'reporter') {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
+        <Card className="p-10 text-center">
+          <h1 className="text-2xl font-bold tracking-[-0.04em] text-slate-900">Access denied</h1>
+          <p className="mt-2 text-sm text-slate-600">This page is only available to reporters.</p>
+        </Card>
+      </div>
+    );
+  }
 
   useEffect(() => {
     const fetchComplaints = async () => {

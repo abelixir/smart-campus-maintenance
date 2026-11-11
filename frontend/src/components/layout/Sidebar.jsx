@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 export default function Sidebar({ open, onToggle }) {
   const { user, isAuthenticated, logout } = useAuth();
+  const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const role = user?.role || 'reporter';
@@ -14,28 +15,56 @@ export default function Sidebar({ open, onToggle }) {
     .slice(0, 2)
     .toUpperCase();
 
+  const isNavItemActive = (item) => {
+    const targetPath = item.to.split('?')[0];
+    const targetSearch = item.to.includes('?') ? item.to.split('?')[1] : '';
+
+    if (location.pathname !== targetPath) {
+      return false;
+    }
+
+    if (!targetSearch) {
+      return !location.search || location.search === '?view=dashboard' || location.search === '?view=overview';
+    }
+
+    return location.search.includes(targetSearch);
+  };
+
   const navItems = useMemo(() => {
-    const baseItems = [{ label: 'Dashboard', path: '/dashboard' }];
-    const profileItem = { label: 'Profile', path: '/profile' };
+    const baseItems = [{ label: 'Dashboard', to: '/dashboard' }];
+    const profileItem = { label: 'Profile', to: '/profile' };
 
     if (role === 'reporter') {
       return [
         ...baseItems,
-        { label: 'Submit complaint', path: '/submit-complaint' },
-        { label: 'My complaints', path: '/my-complaints' },
+        { label: 'Submit complaint', to: '/submit-complaint' },
+        { label: 'My complaints', to: '/my-complaints' },
         profileItem,
       ];
     }
 
     if (role === 'technician') {
-      return [...baseItems, profileItem];
+      return [
+        { label: 'Dashboard', to: '/dashboard' },
+        { label: 'My assigned tasks', to: '/dashboard?view=assigned' },
+        profileItem,
+      ];
     }
 
     if (role === 'supervisor') {
-      return [...baseItems, profileItem];
+      return [
+        { label: 'Dashboard', to: '/dashboard' },
+        { label: 'All complaints', to: '/dashboard?view=all' },
+        profileItem,
+      ];
     }
 
-    return [...baseItems, { label: 'Admin', path: '/admin' }, profileItem];
+    return [
+      { label: 'Dashboard', to: '/dashboard' },
+      { label: 'Users', to: '/admin?view=users' },
+      { label: 'System overview', to: '/admin?view=overview' },
+      profileItem,
+    ];
   }, [role]);
 
   const handleLogout = () => {
@@ -82,24 +111,22 @@ export default function Sidebar({ open, onToggle }) {
 
         <nav className="space-y-1.5">
           {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
+            <Link
+              key={item.label}
+              to={item.to}
               onClick={() => {
                 setIsMobileMenuOpen(false);
                 if (onToggle) onToggle(false);
               }}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition ${
-                  isActive
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-300 hover:bg-slate-900 hover:text-white'
-                }`
-              }
+              className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition ${
+                isNavItemActive(item)
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+              }`}
             >
               <span className="inline-flex h-2.5 w-2.5 rounded-full bg-blue-400" />
               {item.label}
-            </NavLink>
+            </Link>
           ))}
         </nav>
       </div>

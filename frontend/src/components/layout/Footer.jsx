@@ -1,6 +1,10 @@
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Footer() {
+  const { user } = useAuth();
+  const isReporter = user?.role === 'reporter';
+
   return (
     <footer className="relative border-t border-slate-200/80 bg-white/80 backdrop-blur-xl">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-4 lg:px-8">
@@ -26,8 +30,8 @@ export default function Footer() {
           <ul className="space-y-3 text-sm text-slate-600">
             <li><Link to="/" className="transition hover:text-slate-900">Home</Link></li>
             <li><Link to="/dashboard" className="transition hover:text-slate-900">Dashboard</Link></li>
-            <li><Link to="/submit-complaint" className="transition hover:text-slate-900">Submit Complaint</Link></li>
-            <li><Link to="/my-complaints" className="transition hover:text-slate-900">My Complaints</Link></li>
+            {isReporter && <li><Link to="/submit-complaint" className="transition hover:text-slate-900">Submit Complaint</Link></li>}
+            {isReporter && <li><Link to="/my-complaints" className="transition hover:text-slate-900">My Complaints</Link></li>}
           </ul>
         </div>
 

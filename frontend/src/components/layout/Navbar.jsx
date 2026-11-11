@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const role = user?.role || 'reporter';
@@ -14,24 +15,35 @@ export default function Navbar() {
     .slice(0, 2)
     .toUpperCase();
 
+  const isActiveItem = (item) => {
+    const targetPath = item.to.split('?')[0];
+    const targetSearch = item.to.includes('?') ? item.to.split('?')[1] : '';
+
+    if (location.pathname !== targetPath) {
+      return false;
+    }
+
+    if (!targetSearch) {
+      return !location.search || location.search === '?view=dashboard' || location.search === '?view=overview';
+    }
+
+    return location.search.includes(targetSearch);
+  };
+
   const navItems = [
-    { label: 'Home', path: '/' },
+    { label: 'Home', to: '/' },
     ...(isAuthenticated
       ? [
-          { label: 'Dashboard', path: '/dashboard' },
+          { label: 'Dashboard', to: '/dashboard' },
           ...(role === 'reporter'
             ? [
-                { label: 'Submit Complaint', path: '/submit-complaint' },
-                { label: 'My Complaints', path: '/my-complaints' },
+                { label: 'Submit Complaint', to: '/submit-complaint' },
+                { label: 'My Complaints', to: '/my-complaints' },
               ]
             : []),
-          ...(role === 'technician' ? [{ label: 'My Assignments', path: '/dashboard' }] : []),
-          ...(role === 'supervisor' || role === 'admin'
-            ? [
-                { label: 'Admin', path: '/admin' },
-                { label: 'My Complaints', path: '/my-complaints' },
-              ]
-            : []),
+          ...(role === 'technician' ? [{ label: 'My Assigned Tasks', to: '/dashboard?view=assigned' }] : []),
+          ...(role === 'supervisor' ? [{ label: 'All Complaints', to: '/dashboard?view=all' }] : []),
+          ...(role === 'admin' ? [{ label: 'User Management', to: '/admin?view=users' }, { label: 'System Overview', to: '/admin?view=overview' }] : []),
         ]
       : []),
   ];
@@ -53,17 +65,15 @@ export default function Navbar() {
 
         <nav className="hidden items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1 md:flex">
           {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                `rounded-full px-4 py-2 text-sm font-medium transition ${
-                  isActive ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-600 hover:text-slate-900'
-                }`
-              }
+            <Link
+              key={item.label}
+              to={item.to}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                isActiveItem(item) ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
               {item.label}
-            </NavLink>
+            </Link>
           ))}
         </nav>
 
@@ -119,18 +129,16 @@ export default function Navbar() {
         <div className="border-t border-slate-200 bg-white md:hidden">
           <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-4 sm:px-6">
             {navItems.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
+              <Link
+                key={item.label}
+                to={item.to}
                 onClick={() => setMobileOpen(false)}
-                className={({ isActive }) =>
-                  `rounded-2xl px-3 py-2 text-sm font-medium transition ${
-                    isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                  }`
-                }
+                className={`rounded-2xl px-3 py-2 text-sm font-medium transition ${
+                  isActiveItem(item) ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
               >
                 {item.label}
-              </NavLink>
+              </Link>
             ))}
 
             {isAuthenticated ? (

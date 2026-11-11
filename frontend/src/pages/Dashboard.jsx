@@ -150,6 +150,8 @@ export default function Dashboard() {
 
   const reporterComplaints = complaints.filter((item) => item.reporter?._id === user?._id || item.reporter === user?._id);
   const assignedComplaints = complaints.filter((item) => item.assignedTo?._id === user?._id || item.assignedTo === user?._id);
+  const openAssignedComplaints = assignedComplaints.filter((item) => !['Resolved', 'Closed'].includes(item.status));
+  const pendingSupervisorComplaints = complaints.filter((item) => !['Resolved', 'Closed'].includes(item.status));
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -222,88 +224,124 @@ export default function Dashboard() {
       )}
 
       {role === 'technician' && (
-        <Card className="overflow-hidden p-0">
-          <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-lg font-semibold text-slate-900">Assigned complaints</h2>
-          </div>
-          <div className="divide-y divide-slate-200">
-            {assignedComplaints.length === 0 ? (
-              <div className="px-5 py-10 text-center">
-                <p className="text-base font-medium text-slate-900">No assignments</p>
-                <p className="mt-2 text-sm text-slate-500">New tasks assigned to you will appear here.</p>
+        <>
+          <div className="mb-6 grid gap-5 md:grid-cols-3">
+            <Card hover className="p-5">
+              <p className="text-sm text-slate-500">Assigned work</p>
+              <div className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">{assignedComplaints.length}</div>
+            </Card>
+            <Card hover className="p-5">
+              <p className="text-sm text-slate-500">Open tasks</p>
+              <div className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">{openAssignedComplaints.length}</div>
+            </Card>
+            <Card hover className="p-5">
+              <p className="text-sm text-slate-500">Resolved</p>
+              <div className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">
+                {assignedComplaints.filter((item) => item.status === 'Resolved').length}
               </div>
-            ) : (
-              assignedComplaints.map((complaint) => (
-                <div key={complaint._id} className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <Link to={`/complaint/${complaint._id}`} className="text-sm font-semibold text-slate-900 hover:text-blue-600">
-                      {complaint.title}
-                    </Link>
-                    <p className="mt-1 text-sm text-slate-500">{complaint.location?.name || complaint.location}</p>
-                  </div>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <StatusBadge label={getStatusLabel(complaint.status)} type={getStatusBadgeType(complaint.status)} />
-                    <select
-                      value={complaint.status}
-                      onChange={(event) => updateComplaintStatus(complaint._id, event.target.value)}
-                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 shadow-sm transition focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
-                    >
-                      {statusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              ))
-            )}
+            </Card>
           </div>
-        </Card>
+
+          <Card className="overflow-hidden p-0">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <h2 className="text-lg font-semibold text-slate-900">Assigned complaints</h2>
+            </div>
+            <div className="divide-y divide-slate-200">
+              {assignedComplaints.length === 0 ? (
+                <div className="px-5 py-10 text-center">
+                  <p className="text-base font-medium text-slate-900">No assignments</p>
+                  <p className="mt-2 text-sm text-slate-500">New tasks assigned to you will appear here.</p>
+                </div>
+              ) : (
+                assignedComplaints.map((complaint) => (
+                  <div key={complaint._id} className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <Link to={`/complaint/${complaint._id}`} className="text-sm font-semibold text-slate-900 hover:text-blue-600">
+                        {complaint.title}
+                      </Link>
+                      <p className="mt-1 text-sm text-slate-500">{complaint.location?.name || complaint.location}</p>
+                    </div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <StatusBadge label={getStatusLabel(complaint.status)} type={getStatusBadgeType(complaint.status)} />
+                      <select
+                        value={complaint.status}
+                        onChange={(event) => updateComplaintStatus(complaint._id, event.target.value)}
+                        className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 shadow-sm transition focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
+                      >
+                        {statusOptions.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+        </>
       )}
 
       {(role === 'supervisor' || role === 'admin') && (
-        <Card className="overflow-hidden p-0">
-          <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-lg font-semibold text-slate-900">All complaints</h2>
+        <>
+          <div className="mb-6 grid gap-5 md:grid-cols-3">
+            <Card hover className="p-5">
+              <p className="text-sm text-slate-500">Total queue</p>
+              <div className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">{complaints.length}</div>
+            </Card>
+            <Card hover className="p-5">
+              <p className="text-sm text-slate-500">Pending</p>
+              <div className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">{pendingSupervisorComplaints.length}</div>
+            </Card>
+            <Card hover className="p-5">
+              <p className="text-sm text-slate-500">Technicians</p>
+              <div className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">{users.length}</div>
+            </Card>
           </div>
-          <div className="divide-y divide-slate-200">
-            {complaints.length === 0 ? (
-              <div className="px-5 py-10 text-center">
-                <p className="text-base font-medium text-slate-900">No complaints in the queue</p>
-                <p className="mt-2 text-sm text-slate-500">Everything is clear for now. New incidents will appear here automatically.</p>
-              </div>
-            ) : (
-              complaints.map((complaint) => (
-                <div key={complaint._id} className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <Link to={`/complaint/${complaint._id}`} className="text-sm font-semibold text-slate-900 hover:text-blue-600">
-                      {complaint.title}
-                    </Link>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {complaint.reporter?.name || 'Unknown reporter'} • {complaint.location?.name || complaint.location}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <StatusBadge label={getStatusLabel(complaint.status)} type={getStatusBadgeType(complaint.status)} />
-                    <select
-                      value={complaint.assignedTo?._id || 'unassigned'}
-                      onChange={(event) => assignComplaint(complaint._id, event.target.value)}
-                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 shadow-sm transition focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
-                    >
-                      <option value="unassigned">Unassigned</option>
-                      {users.map((userOption) => (
-                        <option key={userOption._id} value={userOption._id}>
-                          {userOption.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+
+          <Card className="overflow-hidden p-0">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <h2 className="text-lg font-semibold text-slate-900">All complaints</h2>
+            </div>
+            <div className="divide-y divide-slate-200">
+              {complaints.length === 0 ? (
+                <div className="px-5 py-10 text-center">
+                  <p className="text-base font-medium text-slate-900">No complaints in the queue</p>
+                  <p className="mt-2 text-sm text-slate-500">Everything is clear for now. New incidents will appear here automatically.</p>
                 </div>
-              ))
-            )}
-          </div>
-        </Card>
+              ) : (
+                complaints.map((complaint) => (
+                  <div key={complaint._id} className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <Link to={`/complaint/${complaint._id}`} className="text-sm font-semibold text-slate-900 hover:text-blue-600">
+                        {complaint.title}
+                      </Link>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {complaint.reporter?.name || 'Unknown reporter'} • {complaint.location?.name || complaint.location}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <StatusBadge label={getStatusLabel(complaint.status)} type={getStatusBadgeType(complaint.status)} />
+                      <select
+                        value={complaint.assignedTo?._id || 'unassigned'}
+                        onChange={(event) => assignComplaint(complaint._id, event.target.value)}
+                        className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 shadow-sm transition focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
+                      >
+                        <option value="unassigned">Unassigned</option>
+                        {users.map((userOption) => (
+                          <option key={userOption._id} value={userOption._id}>
+                            {userOption.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+        </>
       )}
     </div>
   );

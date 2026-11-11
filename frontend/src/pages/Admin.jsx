@@ -3,13 +3,13 @@ import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 
-const roleOptions = ['reporter', 'technician', 'supervisor', 'admin'];
+const roleOptions = ['technician', 'supervisor', 'admin'];
 
 const initialFormState = {
   name: '',
   email: '',
   password: '',
-  role: 'reporter',
+  role: 'technician',
 };
 
 export default function Admin() {
@@ -139,6 +139,32 @@ export default function Admin() {
     }
   };
 
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm('Delete this user? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.message || 'Failed to delete user.');
+      }
+
+      setUsers((prev) => prev.filter((item) => item._id !== userId));
+      setError('');
+    } catch (err) {
+      setError(err.message || 'Unable to delete user.');
+    }
+  };
+
   if (user?.role !== 'admin') {
     return (
       <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
@@ -169,7 +195,7 @@ export default function Admin() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+    <div className="mx-auto min-h-[calc(100vh-6rem)] max-w-7xl px-4 py-12 pb-8 sm:px-6 lg:px-8">
       <div className="mb-8 rounded-[30px] border border-slate-200 bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.04)] backdrop-blur-sm">
         <p className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-600">Administration</p>
         <h1 className="mt-2 text-3xl font-bold tracking-[-0.04em] text-slate-900">Admin dashboard</h1>
@@ -339,21 +365,33 @@ export default function Admin() {
                   <td className="px-5 py-4 font-medium text-slate-800">{person.name}</td>
                   <td className="px-5 py-4 text-slate-600">{person.email}</td>
                   <td className="px-5 py-4">
-                    <select
-                      value={person.role}
-                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 shadow-sm transition focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
-                      onChange={(event) => handleRoleChange(person._id, event.target.value)}
-                    >
-                      {roleOptions.map((role) => (
-                        <option key={role} value={role}>
-                          {role}
-                        </option>
-                      ))}
-                    </select>
+                    {person.role === 'reporter' ? (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] uppercase tracking-[0.12em] text-slate-400">Role</span>
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+                          {person.role}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] uppercase tracking-[0.12em] text-slate-400">Current: {person.role}</span>
+                        <select
+                          value={roleOptions.includes(person.role) ? person.role : 'technician'}
+                          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 shadow-sm transition focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
+                          onChange={(event) => handleRoleChange(person._id, event.target.value)}
+                        >
+                          {roleOptions.map((role) => (
+                            <option key={role} value={role}>
+                              {role}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </td>
                   <td className="px-5 py-4">
-                    <Button type="button" variant="secondary" size="sm" onClick={() => handleRoleChange(person._id, person.role)}>
-                      Save
+                    <Button type="button" variant="danger" size="sm" onClick={() => handleDeleteUser(person._id)}>
+                      Delete
                     </Button>
                   </td>
                 </tr>
