@@ -2,6 +2,35 @@ const Complaint = require('../models/Complaint');
 const Category = require('../models/Category');
 const Location = require('../models/Location');
 const User = require('../models/User');
+const { calculatePriorityScore } = require('../utils/priorityScore');
+
+const normalizePriorityValue = (value, fieldName) => {
+  if (value === undefined || value === null || value === '') {
+    return 1;
+  }
+
+  const parsedValue = Number(value);
+
+  if (!Number.isFinite(parsedValue) || parsedValue < 1 || parsedValue > 5) {
+    throw new Error(`${fieldName} must be a number between 1 and 5`);
+  }
+
+  return parsedValue;
+};
+
+const normalizeEstimatedDuration = (value) => {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+
+  const parsedValue = Number(value);
+
+  if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+    throw new Error('Estimated duration must be a non-negative number in minutes');
+  }
+
+  return parsedValue;
+};
 
 const populateComplaint = (query) => {
   return query
@@ -17,13 +46,19 @@ const populateComplaint = (query) => {
 // @access  Private
 const createComplaint = async (req, res, next) => {
   try {
-    const { title, description, category, location, priority, image } = req.body;
+    const { title, description, category, location, priority, image, severity, safetyRisk, affectedPeople, waitingLevel, estimatedDuration } = req.body;
 
     if (!title || !description || !category || !location) {
       return res.status(400).json({
         message: 'Title, description, category and location are required',
       });
     }
+
+    const validatedSeverity = normalizePriorityValue(severity, 'Severity');
+    const validatedSafetyRisk = normalizePriorityValue(safetyRisk, 'Safety risk');
+    const validatedAffectedPeople = normalizePriorityValue(affectedPeople, 'Affected people');
+    const validatedWaitingLevel = normalizePriorityValue(waitingLevel, 'Waiting level');
+    const validatedEstimatedDuration = normalizeEstimatedDuration(estimatedDuration);
 
     let categoryDoc = await Category.findOne({ name: category });
     if (!categoryDoc) {
@@ -35,12 +70,25 @@ const createComplaint = async (req, res, next) => {
       locationDoc = await Location.create({ name: location });
     }
 
+    const priorityScore = calculatePriorityScore({
+      severity: validatedSeverity,
+      safetyRisk: validatedSafetyRisk,
+      affectedPeople: validatedAffectedPeople,
+      waitingLevel: validatedWaitingLevel,
+    });
+
     const complaint = await Complaint.create({
       title,
       description,
       category: categoryDoc._id,
       location: locationDoc._id,
       priority: priority || 'Medium',
+      severity: validatedSeverity,
+      safetyRisk: validatedSafetyRisk,
+      affectedPeople: validatedAffectedPeople,
+      waitingLevel: validatedWaitingLevel,
+      priorityScore,
+      estimatedDuration: validatedEstimatedDuration,
       image: image || '',
       reporter: req.user._id,
       status: 'Submitted',
@@ -60,6 +108,14 @@ const createComplaint = async (req, res, next) => {
       complaint: populatedComplaint,
     });
   } catch (error) {
+    if (error.message && error.message.includes('must be a number between 1 and 5')) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    if (error.message && error.message.includes('Estimated duration')) {
+      return res.status(400).json({ message: error.message });
+    }
+
     next(error);
   }
 };
@@ -220,6 +276,72 @@ const assignComplaintToTechnician = async (req, res, next) => {
   }
 };
 
+const updateComplaintPriority = async (req, res, next) => {
+  try {
+    const { severity, safetyRisk, affectedPeople, waitingLevel, estimatedDuration } = req.body;
+
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) {
+      return res.status(404).json({ message: 'Complaint not found' });
+    }
+
+    const priorityFields = [
+      { key: 'severity', value: severity, label: 'Severity' },
+      { key: 'safetyRisk', value: safetyRisk, label: 'Safety risk' },
+      { key: 'affectedPeople', value: affectedPeople, label: 'Affected people' },
+      { key: 'waitingLevel', value: waitingLevel, label: 'Waiting level' },
+    ];
+
+    const hasPriorityUpdate = priorityFields.some((field) => field.value !== undefined);
+
+    if (!hasPriorityUpdate) {
+      return res.status(400).json({ message: 'Priority assessment values are required' });
+    }
+
+    priorityFields.forEach((field) => {
+      if (field.value !== undefined) {
+        complaint[field.key] = normalizePriorityValue(field.value, field.label);
+      }
+    });
+
+    if (estimatedDuration !== undefined) {
+      complaint.estimatedDuration = normalizeEstimatedDuration(estimatedDuration);
+    }
+
+    complaint.priorityScore = calculatePriorityScore({
+      severity: complaint.severity,
+      safetyRisk: complaint.safetyRisk,
+      affectedPeople: complaint.affectedPeople,
+      waitingLevel: complaint.waitingLevel,
+    });
+
+    complaint.statusHistory.push({
+      status: complaint.status,
+      changedBy: req.user._id,
+      note: 'Supervisor updated priority assessment',
+    });
+
+    await complaint.save();
+
+    const updatedComplaint = await populateComplaint(Complaint.findById(complaint._id));
+
+    res.status(200).json({
+      message: 'Priority assessment updated successfully',
+      complaint: updatedComplaint,
+    });
+  } catch (error) {
+    if (error.message && error.message.includes('must be a number between 1 and 5')) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    if (error.message && error.message.includes('Estimated duration')) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    next(error);
+  }
+};
+
 module.exports = {
   createComplaint,
   getMyComplaints,
@@ -227,4 +349,5 @@ module.exports = {
   getComplaintById,
   updateComplaintStatus,
   assignComplaintToTechnician,
+  updateComplaintPriority,
 };

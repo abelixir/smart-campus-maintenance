@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { calculatePriorityScore } = require('../utils/priorityScore');
 
 const statusHistorySchema = new mongoose.Schema(
   {
@@ -55,6 +56,39 @@ const complaintSchema = new mongoose.Schema(
       enum: ['Submitted', 'Assigned', 'In Progress', 'Resolved', 'Closed', 'Rejected'],
       default: 'Submitted',
     },
+    severity: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: 1,
+    },
+    safetyRisk: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: 1,
+    },
+    affectedPeople: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: 1,
+    },
+    waitingLevel: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: 1,
+    },
+    priorityScore: {
+      type: Number,
+      default: 1,
+    },
+    estimatedDuration: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
     reporter: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -75,5 +109,17 @@ const complaintSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+complaintSchema.pre('validate', function (next) {
+  const score = calculatePriorityScore({
+    severity: this.severity,
+    safetyRisk: this.safetyRisk,
+    affectedPeople: this.affectedPeople,
+    waitingLevel: this.waitingLevel,
+  });
+
+  this.priorityScore = score;
+  next();
+});
 
 module.exports = mongoose.model('Complaint', complaintSchema);

@@ -18,12 +18,31 @@ const normalizeStatus = (status) => {
   return status;
 };
 
+const calculatePriorityScore = ({ severity, safetyRisk, affectedPeople, waitingLevel }) => {
+  const value =
+    0.35 * Number(severity || 0) +
+    0.3 * Number(safetyRisk || 0) +
+    0.2 * Number(affectedPeople || 0) +
+    0.15 * Number(waitingLevel || 0);
+
+  return Number(value.toFixed(2));
+};
+
 export default function ComplaintDetails() {
   const { id } = useParams();
   const { token, user } = useAuth();
   const [complaint, setComplaint] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [savingPriority, setSavingPriority] = useState(false);
+  const [priorityMessage, setPriorityMessage] = useState('');
+  const [priorityForm, setPriorityForm] = useState({
+    severity: 1,
+    safetyRisk: 1,
+    affectedPeople: 1,
+    waitingLevel: 1,
+    estimatedDuration: '',
+  });
 
   useEffect(() => {
     const fetchComplaint = async () => {
@@ -44,6 +63,13 @@ export default function ComplaintDetails() {
         }
 
         setComplaint(data);
+        setPriorityForm({
+          severity: Number(data.severity || 1),
+          safetyRisk: Number(data.safetyRisk || 1),
+          affectedPeople: Number(data.affectedPeople || 1),
+          waitingLevel: Number(data.waitingLevel || 1),
+          estimatedDuration: data.estimatedDuration ?? '',
+        });
       } catch (err) {
         setError(err.message || 'Something went wrong while loading this complaint.');
       } finally {
@@ -55,6 +81,61 @@ export default function ComplaintDetails() {
       fetchComplaint();
     }
   }, [id, token]);
+
+  const allowPriorityReview = user?.role === 'supervisor' || user?.role === 'admin';
+  const computedPriorityScore = calculatePriorityScore(priorityForm);
+
+  const handlePriorityInputChange = (field, value) => {
+    const numericValue = Number(value);
+    if (!Number.isNaN(numericValue)) {
+      const clampedValue = Math.min(Math.max(numericValue, 1), 5);
+      setPriorityForm((previous) => ({ ...previous, [field]: clampedValue }));
+      return;
+    }
+
+    setPriorityForm((previous) => ({ ...previous, [field]: value }));
+  };
+
+  const handlePrioritySubmit = async (event) => {
+    event.preventDefault();
+
+    if (!allowPriorityReview) {
+      return;
+    }
+
+    setSavingPriority(true);
+    setPriorityMessage('');
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/complaints/${id}/priority`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          severity: Number(priorityForm.severity),
+          safetyRisk: Number(priorityForm.safetyRisk),
+          affectedPeople: Number(priorityForm.affectedPeople),
+          waitingLevel: Number(priorityForm.waitingLevel),
+          estimatedDuration: priorityForm.estimatedDuration === '' ? undefined : Number(priorityForm.estimatedDuration),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.message || 'Unable to update the priority assessment.');
+      }
+
+      setComplaint(data.complaint);
+      setPriorityMessage('Priority assessment saved successfully.');
+    } catch (err) {
+      setPriorityMessage(err.message || 'Unable to update the priority assessment.');
+    } finally {
+      setSavingPriority(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -163,6 +244,76 @@ export default function ComplaintDetails() {
               <p className="mt-1 text-sm text-blue-600">{complaint.assignedTo ? 'Technical support and facilities coordination' : 'No technician assigned yet'}</p>
             </div>
           </Card>
+
+          {allowPriorityReview && (
+            <Card className="p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h3 className="text-lg font-semibold text-slate-900">Priority assessment</h3>
+                <div className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-700">
+                  {computedPriorityScore.toFixed(2)}
+                </div>
+              </div>
+
+              <form onSubmit={handlePrioritySubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { key: 'severity', label: 'Severity' },
+                    { key: 'safetyRisk', label: 'Safety risk' },
+                    { key: 'affectedPeople', label: 'Affected people' },
+                    { key: 'waitingLevel', label: 'Waiting level' },
+                  ].map((field) => (
+                    <label key={field.key} className="block text-sm text-slate-600">
+                      <span className="mb-1.5 block font-medium text-slate-700">{field.label}</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="5"
+                        value={priorityForm[field.key]}
+                        onChange={(event) => handlePriorityInputChange(field.key, event.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      />
+                    </label>
+                  ))}
+                </div>
+
+                <label className="block text-sm text-slate-600">
+                  <span className="mb-1.5 block font-medium text-slate-700">Estimated duration (minutes)</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={priorityForm.estimatedDuration}
+                    onChange={(event) =>
+                      setPriorityForm((previous) => ({
+                        ...previous,
+                        estimatedDuration: event.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    placeholder="Optional"
+                  />
+                </label>
+
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Calculated priority score</p>
+                  <p className="mt-1 text-2xl font-bold text-blue-900">{computedPriorityScore.toFixed(2)}</p>
+                </div>
+
+                {priorityMessage && (
+                  <p className={`text-sm ${priorityMessage.includes('successfully') ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {priorityMessage}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={savingPriority}
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  {savingPriority ? 'Saving...' : 'Save priority assessment'}
+                </button>
+              </form>
+            </Card>
+          )}
         </div>
       </div>
     </div>
