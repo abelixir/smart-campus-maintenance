@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Card from '../components/ui/Card';
 import StatusBadge from '../components/ui/StatusBadge';
 
-const statusOptions = ['Submitted', 'Assigned', 'In Progress', 'Resolved', 'Closed', 'Rejected'];
+const statusOptions = ['Submitted', 'Reviewed', 'Scheduled', 'Assigned', 'In Progress', 'Resolved', 'Closed', 'Rejected'];
 
 const getStatusBadgeType = (status) => {
   if (status === 'In Progress') return 'InProgress';

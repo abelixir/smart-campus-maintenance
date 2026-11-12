@@ -46,7 +46,7 @@ const populateComplaint = (query) => {
 // @access  Private
 const createComplaint = async (req, res, next) => {
   try {
-    const { title, description, category, location, priority, image, severity, safetyRisk, affectedPeople, waitingLevel, estimatedDuration } = req.body;
+    const { title, description, category, location, priority, image, estimatedDuration } = req.body;
 
     if (!title || !description || !category || !location) {
       return res.status(400).json({
@@ -54,10 +54,10 @@ const createComplaint = async (req, res, next) => {
       });
     }
 
-    const validatedSeverity = normalizePriorityValue(severity, 'Severity');
-    const validatedSafetyRisk = normalizePriorityValue(safetyRisk, 'Safety risk');
-    const validatedAffectedPeople = normalizePriorityValue(affectedPeople, 'Affected people');
-    const validatedWaitingLevel = normalizePriorityValue(waitingLevel, 'Waiting level');
+    const validatedSeverity = 1;
+    const validatedSafetyRisk = 1;
+    const validatedAffectedPeople = 1;
+    const validatedWaitingLevel = 1;
     const validatedEstimatedDuration = normalizeEstimatedDuration(estimatedDuration);
 
     let categoryDoc = await Category.findOne({ name: category });
@@ -202,7 +202,7 @@ const updateComplaintStatus = async (req, res, next) => {
       return res.status(400).json({ message: 'Status is required' });
     }
 
-    const validStatuses = ['Submitted', 'Assigned', 'In Progress', 'Resolved', 'Closed', 'Rejected'];
+    const validStatuses = ['Submitted', 'Reviewed', 'Scheduled', 'Assigned', 'In Progress', 'Resolved', 'Closed', 'Rejected'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: 'Invalid complaint status' });
     }
@@ -280,6 +280,10 @@ const updateComplaintPriority = async (req, res, next) => {
   try {
     const { severity, safetyRisk, affectedPeople, waitingLevel, estimatedDuration } = req.body;
 
+    if (!['supervisor', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Only supervisors and admins can update priority assessment' });
+    }
+
     const complaint = await Complaint.findById(req.params.id);
     if (!complaint) {
       return res.status(404).json({ message: 'Complaint not found' });
@@ -318,7 +322,7 @@ const updateComplaintPriority = async (req, res, next) => {
     complaint.statusHistory.push({
       status: complaint.status,
       changedBy: req.user._id,
-      note: 'Supervisor updated priority assessment',
+      note: 'Priority assessment updated by supervisor',
     });
 
     await complaint.save();

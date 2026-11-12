@@ -8,7 +8,7 @@ const getDashboardStats = async (req, res, next) => {
     const [totalComplaints, resolvedComplaints, pendingComplaints, users] = await Promise.all([
       Complaint.countDocuments(),
       Complaint.countDocuments({ status: 'Resolved' }),
-      Complaint.countDocuments({ status: { $in: ['Submitted', 'Assigned', 'In Progress'] } }),
+      Complaint.countDocuments({ status: { $in: ['Submitted', 'Reviewed', 'Scheduled', 'Assigned', 'In Progress'] } }),
       User.find().select('name email role').sort({ createdAt: -1 }),
     ]);
 

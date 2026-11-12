@@ -85,6 +85,33 @@ export default function ComplaintDetails() {
   const allowPriorityReview = user?.role === 'supervisor' || user?.role === 'admin';
   const computedPriorityScore = calculatePriorityScore(priorityForm);
 
+  const markAsReviewed = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/complaints/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          status: 'Reviewed',
+          note: 'Priority assessment completed and complaint marked as reviewed',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.message || 'Unable to mark the complaint as reviewed.');
+      }
+
+      setComplaint(data.complaint);
+      setPriorityMessage('Complaint marked as reviewed.');
+    } catch (err) {
+      setPriorityMessage(err.message || 'Unable to mark the complaint as reviewed.');
+    }
+  };
+
   const handlePriorityInputChange = (field, value) => {
     const numericValue = Number(value);
     if (!Number.isNaN(numericValue)) {
@@ -184,7 +211,6 @@ export default function ComplaintDetails() {
           <div className="mb-6 flex flex-wrap items-center gap-3">
             <span className="text-sm font-semibold text-blue-600">#{complaint._id?.slice(-6).toUpperCase() || id}</span>
             <StatusBadge label={complaint.status === 'In Progress' ? 'In Progress' : complaint.status} type={normalizeStatus(complaint.status)} />
-            <StatusBadge label={complaint.priority} type={complaint.priority} />
           </div>
 
           <div className="space-y-4 text-sm leading-7 text-slate-600">
@@ -219,8 +245,8 @@ export default function ComplaintDetails() {
                 <dd className="font-medium text-slate-700">{locationName}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-slate-500">Priority</dt>
-                <dd className="font-medium text-slate-700">{complaint.priority}</dd>
+                <dt className="text-slate-500">Priority score</dt>
+                <dd className="font-medium text-slate-700">{Number(complaint.priorityScore || 0).toFixed(2)}</dd>
               </div>
               <div className="flex justify-between gap-4">
                 <dt className="text-slate-500">Submitted</dt>
@@ -299,7 +325,7 @@ export default function ComplaintDetails() {
                 </div>
 
                 {priorityMessage && (
-                  <p className={`text-sm ${priorityMessage.includes('successfully') ? 'text-emerald-600' : 'text-red-600'}`}>
+                  <p className={`text-sm ${priorityMessage.includes('successfully') || priorityMessage.includes('reviewed') ? 'text-emerald-600' : 'text-red-600'}`}>
                     {priorityMessage}
                   </p>
                 )}
@@ -310,6 +336,14 @@ export default function ComplaintDetails() {
                   className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
                   {savingPriority ? 'Saving...' : 'Save priority assessment'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={markAsReviewed}
+                  className="inline-flex w-full items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                >
+                  Mark as Reviewed
                 </button>
               </form>
             </Card>

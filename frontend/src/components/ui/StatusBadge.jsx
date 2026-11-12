@@ -1,6 +1,8 @@
 const statusStyles = {
   Pending: 'bg-amber-100 text-amber-700 ring-1 ring-amber-200',
   Submitted: 'bg-sky-100 text-sky-700 ring-1 ring-sky-200',
+  Reviewed: 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-200',
+  Scheduled: 'bg-cyan-100 text-cyan-700 ring-1 ring-cyan-200',
   InProgress: 'bg-blue-100 text-blue-700 ring-1 ring-blue-200',
   Assigned: 'bg-violet-100 text-violet-700 ring-1 ring-violet-200',
   Resolved: 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200',
