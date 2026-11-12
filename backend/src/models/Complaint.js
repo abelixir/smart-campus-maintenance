@@ -5,7 +5,16 @@ const statusHistorySchema = new mongoose.Schema(
   {
     status: {
       type: String,
-      enum: ['Submitted', 'Reviewed', 'Scheduled', 'Assigned', 'In Progress', 'Resolved', 'Closed', 'Rejected'],
+      enum: [
+        'Submitted',
+        'Reviewed',
+        'Scheduled',
+        'Assigned',
+        'In Progress',
+        'Resolved',
+        'Closed',
+        'Rejected',
+      ],
       required: true,
     },
     changedAt: {
@@ -53,7 +62,16 @@ const complaintSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Submitted', 'Reviewed', 'Scheduled', 'Assigned', 'In Progress', 'Resolved', 'Closed', 'Rejected'],
+      enum: [
+        'Submitted',
+        'Reviewed',
+        'Scheduled',
+        'Assigned',
+        'In Progress',
+        'Resolved',
+        'Closed',
+        'Rejected',
+      ],
       default: 'Submitted',
     },
     severity: {
@@ -111,14 +129,12 @@ const complaintSchema = new mongoose.Schema(
 );
 
 complaintSchema.pre('validate', function (next) {
-  const score = calculatePriorityScore({
+  this.priorityScore = calculatePriorityScore({
     severity: this.severity,
     safetyRisk: this.safetyRisk,
     affectedPeople: this.affectedPeople,
     waitingLevel: this.waitingLevel,
   });
-
-  this.priorityScore = score;
   next();
 });
 
