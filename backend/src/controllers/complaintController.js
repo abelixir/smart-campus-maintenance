@@ -47,6 +47,7 @@ const populateComplaint = (query) => {
 const createComplaint = async (req, res, next) => {
   try {
     const { title, description, category, location, priority, image, estimatedDuration } = req.body;
+    const { severity, safetyRisk, affectedPeople, waitingLevel } = req.body;
 
     if (!title || !description || !category || !location) {
       return res.status(400).json({
@@ -54,10 +55,12 @@ const createComplaint = async (req, res, next) => {
       });
     }
 
-    const validatedSeverity = 1;
-    const validatedSafetyRisk = 1;
-    const validatedAffectedPeople = 1;
-    const validatedWaitingLevel = 1;
+    const isReporter = req.user.role === 'reporter';
+
+    const validatedSeverity = isReporter ? 1 : normalizePriorityValue(severity, 'Severity');
+    const validatedSafetyRisk = isReporter ? 1 : normalizePriorityValue(safetyRisk, 'Safety risk');
+    const validatedAffectedPeople = isReporter ? 1 : normalizePriorityValue(affectedPeople, 'Affected people');
+    const validatedWaitingLevel = isReporter ? 1 : normalizePriorityValue(waitingLevel, 'Waiting level');
     const validatedEstimatedDuration = normalizeEstimatedDuration(estimatedDuration);
 
     let categoryDoc = await Category.findOne({ name: category });
@@ -70,7 +73,7 @@ const createComplaint = async (req, res, next) => {
       locationDoc = await Location.create({ name: location });
     }
 
-    const priorityScore = calculatePriorityScore({
+    const computedPriorityScore = calculatePriorityScore({
       severity: validatedSeverity,
       safetyRisk: validatedSafetyRisk,
       affectedPeople: validatedAffectedPeople,
@@ -87,7 +90,7 @@ const createComplaint = async (req, res, next) => {
       safetyRisk: validatedSafetyRisk,
       affectedPeople: validatedAffectedPeople,
       waitingLevel: validatedWaitingLevel,
-      priorityScore,
+      priorityScore: computedPriorityScore,
       estimatedDuration: validatedEstimatedDuration,
       image: image || '',
       reporter: req.user._id,

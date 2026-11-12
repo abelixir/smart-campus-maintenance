@@ -105,7 +105,19 @@ export default function ComplaintDetails() {
         throw new Error(data?.message || 'Unable to mark the complaint as reviewed.');
       }
 
-      setComplaint(data.complaint);
+      const refreshedResponse = await fetch(`http://localhost:5000/api/complaints/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const refreshedData = await refreshedResponse.json();
+
+      if (!refreshedResponse.ok) {
+        throw new Error(refreshedData?.message || 'Unable to refresh complaint details.');
+      }
+
+      setComplaint(refreshedData);
       setPriorityMessage('Complaint marked as reviewed.');
     } catch (err) {
       setPriorityMessage(err.message || 'Unable to mark the complaint as reviewed.');
