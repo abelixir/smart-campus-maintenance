@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+const technicianSkillOptions = ['Electrical', 'Plumbing', 'HVAC', 'Cleaning', 'Furniture', 'Security', 'Other'];
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -32,6 +34,19 @@ const userSchema = new mongoose.Schema(
     department: {
       type: String,
       trim: true,
+    },
+    skills: {
+      type: [String],
+      enum: technicianSkillOptions,
+      default: [],
+    },
+    isAvailable: {
+      type: Boolean,
+      default: true,
+    },
+    currentWorkload: {
+      type: Number,
+      default: 0,
     },
     isActive: {
       type: Boolean,

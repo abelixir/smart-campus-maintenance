@@ -4,12 +4,16 @@ import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 
 const roleOptions = ['technician', 'supervisor', 'admin'];
+const technicianSkillOptions = ['Electrical', 'Plumbing', 'HVAC', 'Cleaning', 'Furniture', 'Security', 'Other'];
 
 const initialFormState = {
   name: '',
   email: '',
   password: '',
   role: 'technician',
+  skills: [],
+  isAvailable: true,
+  currentWorkload: 0,
 };
 
 export default function Admin() {
@@ -72,8 +76,24 @@ export default function Admin() {
   }, [user, token]);
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
+    const { name, value, type, checked } = event.target;
+
+    if (type === 'checkbox') {
+      setForm((prev) => ({ ...prev, [name]: checked }));
+      return;
+    }
+
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSkillToggle = (skill) => {
+    setForm((prev) => {
+      const nextSkills = prev.skills.includes(skill)
+        ? prev.skills.filter((item) => item !== skill)
+        : [...prev.skills, skill];
+
+      return { ...prev, skills: nextSkills };
+    });
   };
 
   const handleCreateUser = async (event) => {
@@ -82,13 +102,20 @@ export default function Admin() {
     setError('');
 
     try {
+      const payload = {
+        ...form,
+        skills: form.role === 'technician' ? form.skills : [],
+        isAvailable: form.role === 'technician' ? form.isAvailable : true,
+        currentWorkload: form.role === 'technician' ? Number(form.currentWorkload || 0) : 0,
+      };
+
       const response = await fetch('http://localhost:5000/api/admin/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -325,7 +352,16 @@ export default function Admin() {
               id="role"
               name="role"
               value={form.role}
-              onChange={handleChange}
+              onChange={(event) => {
+                const nextRole = event.target.value;
+                setForm((prev) => ({
+                  ...prev,
+                  role: nextRole,
+                  skills: nextRole === 'technician' ? prev.skills : [],
+                  isAvailable: nextRole === 'technician' ? prev.isAvailable : true,
+                  currentWorkload: nextRole === 'technician' ? prev.currentWorkload : 0,
+                }));
+              }}
               className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.75 text-sm text-slate-800 shadow-sm transition focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
             >
               {roleOptions.map((role) => (
@@ -335,6 +371,66 @@ export default function Admin() {
               ))}
             </select>
           </div>
+
+          {form.role === 'technician' && (
+            <>
+              <div className="md:col-span-2 space-y-2">
+                <label className="block text-sm font-medium text-slate-700">Skills</label>
+                <div className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+                  {technicianSkillOptions.map((skill) => {
+                    const selected = form.skills.includes(skill);
+
+                    return (
+                      <button
+                        key={skill}
+                        type="button"
+                        onClick={() => handleSkillToggle(skill)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                          selected
+                            ? 'border-blue-500 bg-blue-100 text-blue-700'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                        }`}
+                      >
+                        {skill}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="isAvailable" className="block text-sm font-medium text-slate-700">Availability</label>
+                <select
+                  id="isAvailable"
+                  name="isAvailable"
+                  value={String(form.isAvailable)}
+                  onChange={(event) => setForm((prev) => ({ ...prev, isAvailable: event.target.value === 'true' }))}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.75 text-sm text-slate-800 shadow-sm transition focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
+                >
+                  <option value="true">Available</option>
+                  <option value="false">Unavailable</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="currentWorkload" className="block text-sm font-medium text-slate-700">Current Workload</label>
+                <input
+                  id="currentWorkload"
+                  name="currentWorkload"
+                  type="number"
+                  min="0"
+                  value={form.currentWorkload}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      currentWorkload: Number(event.target.value || 0),
+                    }))
+                  }
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.75 text-sm text-slate-800 placeholder:text-slate-400 shadow-sm transition focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
+                />
+              </div>
+            </>
+          )}
 
           <div className="md:col-span-2 flex justify-end">
             <Button type="submit" className="min-w-40" disabled={submitLoading}>

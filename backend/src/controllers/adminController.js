@@ -2,6 +2,18 @@ const Complaint = require('../models/Complaint');
 const User = require('../models/User');
 
 const ADMIN_MANAGED_ROLES = ['technician', 'supervisor', 'admin'];
+const TECHNICIAN_SKILLS = ['Electrical', 'Plumbing', 'HVAC', 'Cleaning', 'Furniture', 'Security', 'Other'];
+
+const normalizeTechnicianProfile = (rawSkills, rawIsAvailable, rawCurrentWorkload) => {
+  const skills = Array.isArray(rawSkills) ? rawSkills : [];
+  const validSkills = [...new Set(skills.filter((skill) => TECHNICIAN_SKILLS.includes(skill)))];
+
+  return {
+    skills: validSkills,
+    isAvailable: rawIsAvailable === undefined ? true : Boolean(rawIsAvailable),
+    currentWorkload: Number.isFinite(Number(rawCurrentWorkload)) ? Number(rawCurrentWorkload) : 0,
+  };
+};
 
 const getDashboardStats = async (req, res, next) => {
   try {
@@ -51,7 +63,7 @@ const getUsers = async (req, res, next) => {
 
 const createUser = async (req, res, next) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, skills, isAvailable, currentWorkload } = req.body;
     const requestedRole = role || 'technician';
 
     if (!name || !email || !password) {
@@ -67,11 +79,18 @@ const createUser = async (req, res, next) => {
       return res.status(400).json({ message: 'User already exists with this email' });
     }
 
+    const technicianProfile = requestedRole === 'technician'
+      ? normalizeTechnicianProfile(skills, isAvailable, currentWorkload)
+      : { skills: [], isAvailable: true, currentWorkload: 0 };
+
     const user = await User.create({
       name,
       email: email.toLowerCase(),
       password,
       role: requestedRole,
+      skills: technicianProfile.skills,
+      isAvailable: technicianProfile.isAvailable,
+      currentWorkload: technicianProfile.currentWorkload,
     });
 
     res.status(201).json({
@@ -81,6 +100,9 @@ const createUser = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        skills: user.skills,
+        isAvailable: user.isAvailable,
+        currentWorkload: user.currentWorkload,
       },
     });
   } catch (error) {
@@ -90,7 +112,7 @@ const createUser = async (req, res, next) => {
 
 const updateUserRole = async (req, res, next) => {
   try {
-    const { role } = req.body;
+    const { role, skills, isAvailable, currentWorkload } = req.body;
 
     if (!ADMIN_MANAGED_ROLES.includes(role)) {
       return res.status(400).json({ message: 'Only technician, supervisor, and admin roles can be assigned by an admin' });
@@ -102,6 +124,18 @@ const updateUserRole = async (req, res, next) => {
     }
 
     user.role = role;
+
+    if (role === 'technician') {
+      const technicianProfile = normalizeTechnicianProfile(skills, isAvailable, currentWorkload);
+      user.skills = technicianProfile.skills;
+      user.isAvailable = technicianProfile.isAvailable;
+      user.currentWorkload = technicianProfile.currentWorkload;
+    } else {
+      user.skills = [];
+      user.isAvailable = true;
+      user.currentWorkload = 0;
+    }
+
     await user.save();
 
     res.status(200).json({
@@ -111,6 +145,9 @@ const updateUserRole = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        skills: user.skills,
+        isAvailable: user.isAvailable,
+        currentWorkload: user.currentWorkload,
       },
     });
   } catch (error) {
