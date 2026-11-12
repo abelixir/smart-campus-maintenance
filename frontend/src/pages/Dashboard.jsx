@@ -29,6 +29,7 @@ export default function Dashboard() {
   const { user, token } = useAuth();
   const [complaints, setComplaints] = useState([]);
   const [users, setUsers] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -68,9 +69,32 @@ export default function Dashboard() {
         throw new Error(data?.message || 'Unable to load technicians.');
       }
 
-      setUsers((data.users || []).filter((person) => person.role === 'technician'));
+      const technicians = (data.users || []).filter((person) => person.role === 'technician');
+      setUsers(technicians);
     } catch (err) {
       setError(err.message || 'Failed to load technician list.');
+    }
+  };
+
+  const fetchRecommendations = async () => {
+    if (!['supervisor', 'admin'].includes(role)) return;
+
+    try {
+      const response = await fetch('http://localhost:5000/api/complaints/recommendations', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.message || 'Unable to load recommendations.');
+      }
+
+      setRecommendations(data.recommendations || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load technician recommendations.');
     }
   };
 
@@ -80,7 +104,7 @@ export default function Dashboard() {
     const loadData = async () => {
       setLoading(true);
       setError('');
-      await Promise.all([fetchComplaints(), fetchUsers()]);
+      await Promise.all([fetchComplaints(), fetchUsers(), fetchRecommendations()]);
       setLoading(false);
     };
 
@@ -132,8 +156,27 @@ export default function Dashboard() {
       setComplaints((prev) =>
         prev.map((item) => (item._id === complaintId ? { ...item, assignedTo: data.complaint.assignedTo, status: 'Assigned' } : item))
       );
+
+      setRecommendations((prev) =>
+        prev.filter((item) => item.complaintId !== complaintId)
+      );
+
+      return data.complaint;
     } catch (err) {
       setError(err.message || 'Failed to assign complaint.');
+      return null;
+    }
+  };
+
+  const approveRecommendation = async (recommendation) => {
+    if (!recommendation || recommendation.requiresSupervisorAction || !recommendation.recommendedTechnicianId) {
+      return;
+    }
+
+    const approvedComplaint = await assignComplaint(recommendation.complaintId, recommendation.recommendedTechnicianId);
+
+    if (approvedComplaint) {
+      await fetchRecommendations();
     }
   };
 
@@ -299,6 +342,68 @@ export default function Dashboard() {
               <div className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">{users.length}</div>
             </Card>
           </div>
+
+          <Card className="mb-8 overflow-hidden p-0">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <h2 className="text-lg font-semibold text-slate-900">Priority-aware recommendations</h2>
+            </div>
+            <div className="divide-y divide-slate-200">
+              {recommendations.length === 0 ? (
+                <div className="px-5 py-10 text-center text-sm text-slate-500">
+                  No recommendations available for pending complaints.
+                </div>
+              ) : (
+                recommendations.map((recommendation) => {
+                  const complaint = complaints.find((item) => item._id === recommendation.complaintId);
+                  const recommendedTech = users.find((person) => person._id === recommendation.recommendedTechnicianId);
+
+                  return (
+                    <div key={recommendation.complaintId} className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">{complaint?.title || recommendation.complaintTitle}</p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.12em] text-slate-400">Priority score {Number(recommendation.priorityScore || 0).toFixed(2)}</p>
+                        <p className="mt-2 text-sm text-slate-600">
+                          {recommendation.requiresSupervisorAction
+                            ? recommendation.reason
+                            : `Recommended: ${recommendation.recommendedTechnicianName || recommendedTech?.name || 'Technician'}`}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        {!recommendation.requiresSupervisorAction && (
+                          <button
+                            type="button"
+                            onClick={() => approveRecommendation(recommendation)}
+                            className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                          >
+                            Approve recommendation
+                          </button>
+                        )}
+
+                        <select
+                          defaultValue={recommendation.recommendedTechnicianId || 'unassigned'}
+                          onChange={(event) => {
+                            const selectedTechnicianId = event.target.value;
+                            if (selectedTechnicianId && selectedTechnicianId !== 'unassigned') {
+                              assignComplaint(recommendation.complaintId, selectedTechnicianId);
+                            }
+                          }}
+                          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 shadow-sm transition focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-100"
+                        >
+                          <option value="unassigned">Override technician</option>
+                          {users.map((userOption) => (
+                            <option key={userOption._id} value={userOption._id}>
+                              {userOption.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </Card>
 
           <Card className="overflow-hidden p-0">
             <div className="border-b border-slate-200 px-5 py-4">

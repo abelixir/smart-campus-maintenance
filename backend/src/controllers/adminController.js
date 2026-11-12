@@ -54,7 +54,10 @@ const getDashboardStats = async (req, res, next) => {
 
 const getUsers = async (req, res, next) => {
   try {
-    const users = await User.find().select('name email role phone department isActive').sort({ createdAt: -1 });
+    const users = await User.find()
+      .select('name email role phone department isActive skills isAvailable currentWorkload')
+      .sort({ createdAt: -1 });
+
     res.status(200).json({ users });
   } catch (error) {
     next(error);

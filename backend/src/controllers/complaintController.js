@@ -3,6 +3,7 @@ const Category = require('../models/Category');
 const Location = require('../models/Location');
 const User = require('../models/User');
 const { calculatePriorityScore } = require('../utils/priorityScore');
+const { generateRecommendations } = require('../utils/scheduler');
 
 const normalizePriorityValue = (value, fieldName) => {
   if (value === undefined || value === null || value === '') {
@@ -291,6 +292,30 @@ const assignComplaintToTechnician = async (req, res, next) => {
 // @desc    Update priority assessment (Supervisor / Admin only)
 // @route   PATCH /api/complaints/:id/priority
 // @access  Private (supervisor, admin)
+const getComplaintRecommendations = async (req, res, next) => {
+  try {
+    const pendingComplaints = await populateComplaint(
+      Complaint.find({ status: { $in: ['Submitted', 'Reviewed'] } }).sort({ priorityScore: -1, createdAt: -1 })
+    );
+
+    const technicians = await User.find({ role: 'technician', isActive: true }).select(
+      'name role skills isAvailable currentWorkload'
+    );
+
+    const recommendations = generateRecommendations({
+      complaints: pendingComplaints,
+      technicians,
+    });
+
+    res.status(200).json({
+      count: recommendations.length,
+      recommendations,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const updateComplaintPriority = async (req, res, next) => {
   try {
     const { severity, safetyRisk, affectedPeople, waitingLevel, estimatedDuration } = req.body;
@@ -365,4 +390,5 @@ module.exports = {
   updateComplaintStatus,
   assignComplaintToTechnician,
   updateComplaintPriority,
+  getComplaintRecommendations,
 };
