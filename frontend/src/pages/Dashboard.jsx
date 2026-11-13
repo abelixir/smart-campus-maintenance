@@ -362,11 +362,18 @@ export default function Dashboard() {
                       <div>
                         <p className="text-sm font-semibold text-slate-900">{complaint?.title || recommendation.complaintTitle}</p>
                         <p className="mt-1 text-xs uppercase tracking-[0.12em] text-slate-400">Priority score {Number(recommendation.priorityScore || 0).toFixed(2)}</p>
-                        <p className="mt-2 text-sm text-slate-600">
-                          {recommendation.requiresSupervisorAction
-                            ? recommendation.reason
-                            : `Recommended: ${recommendation.recommendedTechnicianName || recommendedTech?.name || 'Technician'}`}
-                        </p>
+
+                        <div className="mt-2 space-y-1 text-sm text-slate-600">
+                          <p>
+                            <span className="font-semibold text-slate-700">Recommended technician:</span>{' '}
+                            {recommendation.requiresSupervisorAction
+                              ? 'Supervisor action needed'
+                              : recommendation.recommendedTechnicianName || recommendedTech?.name || 'Technician'}
+                          </p>
+                          <p>
+                            <span className="font-semibold text-slate-700">Reason:</span> {recommendation.reason}
+                          </p>
+                        </div>
                       </div>
 
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

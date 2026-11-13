@@ -278,6 +278,9 @@ const assignComplaintToTechnician = async (req, res, next) => {
 
     await complaint.save();
 
+    technician.currentWorkload = Number(technician.currentWorkload || 0) + 1;
+    await technician.save();
+
     const updatedComplaint = await populateComplaint(Complaint.findById(complaint._id));
 
     res.status(200).json({
@@ -289,10 +292,10 @@ const assignComplaintToTechnician = async (req, res, next) => {
   }
 };
 
-// @desc    Update priority assessment (Supervisor / Admin only)
-// @route   PATCH /api/complaints/:id/priority
+// @desc    Get technician recommendations for pending complaints
+// @route   GET /api/complaints/recommendations
 // @access  Private (supervisor, admin)
-const getComplaintRecommendations = async (req, res, next) => {
+const getRecommendations = async (req, res, next) => {
   try {
     const pendingComplaints = await populateComplaint(
       Complaint.find({ status: { $in: ['Submitted', 'Reviewed'] } }).sort({ priorityScore: -1, createdAt: -1 })
@@ -315,6 +318,8 @@ const getComplaintRecommendations = async (req, res, next) => {
     next(error);
   }
 };
+
+const getComplaintRecommendations = getRecommendations;
 
 const updateComplaintPriority = async (req, res, next) => {
   try {
@@ -390,5 +395,6 @@ module.exports = {
   updateComplaintStatus,
   assignComplaintToTechnician,
   updateComplaintPriority,
+  getRecommendations,
   getComplaintRecommendations,
 };
