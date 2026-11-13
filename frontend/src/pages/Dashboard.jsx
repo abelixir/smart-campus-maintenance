@@ -30,6 +30,7 @@ export default function Dashboard() {
   const [complaints, setComplaints] = useState([]);
   const [users, setUsers] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
+  const [evaluation, setEvaluation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -98,13 +99,35 @@ export default function Dashboard() {
     }
   };
 
+  const fetchEvaluation = async () => {
+    if (!['supervisor', 'admin'].includes(role)) return;
+
+    try {
+      const response = await fetch('http://localhost:5000/api/complaints/evaluation', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.message || 'Unable to load comparison data.');
+      }
+
+      setEvaluation(data);
+    } catch (err) {
+      setError(err.message || 'Failed to load evaluation summary.');
+    }
+  };
+
   useEffect(() => {
     if (!token) return;
 
     const loadData = async () => {
       setLoading(true);
       setError('');
-      await Promise.all([fetchComplaints(), fetchUsers(), fetchRecommendations()]);
+      await Promise.all([fetchComplaints(), fetchUsers(), fetchRecommendations(), fetchEvaluation()]);
       setLoading(false);
     };
 
@@ -373,6 +396,10 @@ export default function Dashboard() {
                           <p>
                             <span className="font-semibold text-slate-700">Reason:</span> {recommendation.reason}
                           </p>
+                          <p>
+                            <span className="font-semibold text-slate-700">Complaint status:</span>{' '}
+                            {complaint?.status || 'Pending'}
+                          </p>
                         </div>
                       </div>
 
@@ -411,6 +438,43 @@ export default function Dashboard() {
               )}
             </div>
           </Card>
+
+          {evaluation && (
+            <Card className="mb-8 overflow-hidden p-0">
+              <div className="border-b border-slate-200 px-5 py-4">
+                <h2 className="text-lg font-semibold text-slate-900">Priority-aware vs FCFS comparison</h2>
+              </div>
+              <div className="grid gap-4 p-5 md:grid-cols-3">
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">Priority-aware</p>
+                  <p className="mt-3 text-2xl font-bold text-slate-900">{evaluation.priorityAware.averageWaitingTimeHours}h</p>
+                  <p className="mt-2 text-sm text-slate-600">Average wait estimate</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-700">FCFS</p>
+                  <p className="mt-3 text-2xl font-bold text-slate-900">{evaluation.fcfs.averageWaitingTimeHours}h</p>
+                  <p className="mt-2 text-sm text-slate-600">Average wait estimate</p>
+                </div>
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">High-priority first</p>
+                  <p className="mt-3 text-2xl font-bold text-slate-900">{evaluation.priorityAware.highPriorityHandledFirst}</p>
+                  <p className="mt-2 text-sm text-slate-600">Priority-aware count</p>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-200 p-5">
+                <p className="text-sm font-medium text-slate-700">Workload distribution</p>
+                <div className="mt-3 space-y-2">
+                  {evaluation.priorityAware.workloadDistribution.map((tech) => (
+                    <div key={tech.technicianId} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                      <span>{tech.name}</span>
+                      <span className="font-semibold text-slate-900">{tech.currentWorkload} active</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          )}
 
           <Card className="overflow-hidden p-0">
             <div className="border-b border-slate-200 px-5 py-4">

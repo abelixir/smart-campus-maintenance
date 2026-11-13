@@ -3,7 +3,7 @@ const Category = require('../models/Category');
 const Location = require('../models/Location');
 const User = require('../models/User');
 const { calculatePriorityScore } = require('../utils/priorityScore');
-const { generateRecommendations } = require('../utils/scheduler');
+const { generateRecommendations, comparePriorityAwareVsFCFS } = require('../utils/scheduler');
 
 const normalizePriorityValue = (value, fieldName) => {
   if (value === undefined || value === null || value === '') {
@@ -234,6 +234,18 @@ const updateComplaintStatus = async (req, res, next) => {
       note: note || `Status updated to ${status}`,
     });
 
+    if (status === 'Resolved' && complaint.assignedTo) {
+      const assignedTechnician = await User.findById(complaint.assignedTo);
+
+      if (assignedTechnician) {
+        assignedTechnician.currentWorkload = Math.max(
+          0,
+          Number(assignedTechnician.currentWorkload || 0) - 1
+        );
+        await assignedTechnician.save();
+      }
+    }
+
     await complaint.save();
 
     const updatedComplaint = await populateComplaint(Complaint.findById(complaint._id));
@@ -321,6 +333,27 @@ const getRecommendations = async (req, res, next) => {
 
 const getComplaintRecommendations = getRecommendations;
 
+const getEvaluationSummary = async (req, res, next) => {
+  try {
+    const pendingComplaints = await populateComplaint(
+      Complaint.find({ status: { $in: ['Submitted', 'Reviewed'] } }).sort({ priorityScore: -1, createdAt: -1 })
+    );
+
+    const technicians = await User.find({ role: 'technician', isActive: true }).select(
+      'name role skills isAvailable currentWorkload'
+    );
+
+    const evaluation = comparePriorityAwareVsFCFS({
+      complaints: pendingComplaints,
+      technicians,
+    });
+
+    res.status(200).json(evaluation);
+  } catch (error) {
+    next(error);
+  }
+};
+
 const updateComplaintPriority = async (req, res, next) => {
   try {
     const { severity, safetyRisk, affectedPeople, waitingLevel, estimatedDuration } = req.body;
@@ -397,4 +430,5 @@ module.exports = {
   updateComplaintPriority,
   getRecommendations,
   getComplaintRecommendations,
+  getEvaluationSummary,
 };
