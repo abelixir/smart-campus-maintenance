@@ -10,7 +10,7 @@ const {
   updateComplaintPriority,
   getRecommendations,
   getComplaintRecommendations,
-  getEvaluationSummary,
+  getEvaluation,
 } = require('../controllers/complaintController');
 
 const router = express.Router();
@@ -21,8 +21,8 @@ router.post('/', authorize('reporter'), createComplaint);
 router.get('/my', authorize('reporter'), getMyComplaints);
 router.get('/', authorize('reporter', 'technician', 'supervisor', 'admin'), getComplaints);
 router.get('/recommendations', authorize('supervisor', 'admin'), getRecommendations);
-router.get('/evaluation', authorize('supervisor', 'admin'), getEvaluationSummary);
 router.post('/generate-schedule', authorize('supervisor', 'admin'), getComplaintRecommendations);
+router.get('/evaluation', authorize('supervisor', 'admin'), getEvaluation);
 router.patch('/:id/status', authorize('technician', 'supervisor', 'admin'), updateComplaintStatus);
 router.patch('/:id/assign', authorize('supervisor', 'admin'), assignComplaintToTechnician);
 router.patch('/:id/priority', authorize('supervisor', 'admin'), updateComplaintPriority);
