@@ -40,6 +40,7 @@ function AppShell() {
               <Route path="/complaint/:id" element={<ProtectedRoute allowedRoles={['reporter', 'technician', 'supervisor', 'admin']}><ComplaintDetails /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute allowedRoles={['reporter', 'technician', 'supervisor', 'admin']}><Profile /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><Admin /></ProtectedRoute>} />
+              <Route path="/evaluation" element={<ProtectedRoute allowedRoles={['supervisor', 'admin']}><Evaluation /></ProtectedRoute>} />
 
               <Route path="*" element={<Home />} />
             </Routes>
@@ -86,8 +87,8 @@ function AppShell() {
               <Route path="/my-complaints" element={<ProtectedRoute allowedRoles={['reporter']}><MyComplaints /></ProtectedRoute>} />
               <Route path="/complaint/:id" element={<ProtectedRoute allowedRoles={['reporter', 'technician', 'supervisor', 'admin']}><ComplaintDetails /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute allowedRoles={['reporter', 'technician', 'supervisor', 'admin']}><Profile /></ProtectedRoute>} />
-              <Route path="/evaluation" element={<ProtectedRoute allowedRoles={['supervisor', 'admin']}><Evaluation /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><Admin /></ProtectedRoute>} />
+              <Route path="/evaluation" element={<ProtectedRoute allowedRoles={['supervisor', 'admin']}><Evaluation /></ProtectedRoute>} />
 
               <Route path="*" element={<Home />} />
             </Routes>

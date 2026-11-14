@@ -264,14 +264,14 @@ const updateComplaintStatus = async (req, res, next) => {
 // @access  Private (supervisor, admin)
 const assignComplaintToTechnician = async (req, res, next) => {
   try {
-    const { technicianId, note, isOverride = false, overrideReason, status } = req.body;
+    const { technicianId, note, isOverride, overrideReason } = req.body;
 
     if (!technicianId) {
       return res.status(400).json({ message: 'Technician ID is required' });
     }
 
-    if (isOverride === true && (!overrideReason || !String(overrideReason).trim())) {
-      return res.status(400).json({ message: 'Override reason is required when approving an override.' });
+    if (isOverride && !overrideReason) {
+      return res.status(400).json({ message: 'Override reason is required when overriding recommendation' });
     }
 
     const complaint = await Complaint.findById(req.params.id);
@@ -284,15 +284,15 @@ const assignComplaintToTechnician = async (req, res, next) => {
       return res.status(400).json({ message: 'A valid technician is required' });
     }
 
-    const nextStatus = ['Assigned', 'Scheduled'].includes(status) ? status : 'Assigned';
+    complaint.assignedTo = technician._id;
+    complaint.status = 'Assigned';
+
     const historyNote = isOverride
-      ? `Override: ${overrideReason.trim()}${note ? ` | ${note}` : ''}`
+      ? `Override: ${overrideReason}`
       : note || `Assigned to ${technician.name}`;
 
-    complaint.assignedTo = technician._id;
-    complaint.status = nextStatus;
     complaint.statusHistory.push({
-      status: nextStatus,
+      status: 'Assigned',
       changedBy: req.user._id,
       note: historyNote,
     });
@@ -305,7 +305,7 @@ const assignComplaintToTechnician = async (req, res, next) => {
     const updatedComplaint = await populateComplaint(Complaint.findById(complaint._id));
 
     res.status(200).json({
-      message: 'Complaint assigned successfully',
+      message: isOverride ? 'Complaint assigned with override' : 'Complaint assigned successfully',
       complaint: updatedComplaint,
     });
   } catch (error) {
@@ -343,7 +343,6 @@ const getRecommendations = async (req, res, next) => {
   }
 };
 
-// Alias used by some routes
 const getComplaintRecommendations = getRecommendations;
 
 // @desc    Get evaluation summary (Priority-Aware vs FCFS)
@@ -373,7 +372,7 @@ const getEvaluationSummary = async (req, res, next) => {
   }
 };
 
-// Alias so routes that import `getEvaluation` still work
+// Alias so routes that import getEvaluation still work
 const getEvaluation = getEvaluationSummary;
 
 // @desc    Update priority assessment (supervisor)
@@ -456,5 +455,5 @@ module.exports = {
   getRecommendations,
   getComplaintRecommendations,
   getEvaluationSummary,
-  getEvaluation, // ← alias so routes that use getEvaluation work
+  getEvaluation, // alias
 };
