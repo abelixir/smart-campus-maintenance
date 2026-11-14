@@ -3,7 +3,7 @@ const Category = require('../models/Category');
 const Location = require('../models/Location');
 const User = require('../models/User');
 const { calculatePriorityScore } = require('../utils/priorityScore');
-const { generateRecommendations, generateFCFSRecommendations } = require('../utils/scheduler');
+const { generateRecommendations, comparePriorityAwareVsFCFS } = require('../utils/scheduler');
 
 const normalizePriorityValue = (value, fieldName) => {
   if (value === undefined || value === null || value === '') {
@@ -42,6 +42,9 @@ const populateComplaint = (query) => {
     .populate('statusHistory.changedBy', 'name email role');
 };
 
+// @desc    Create new complaint
+// @route   POST /api/complaints
+// @access  Private (Reporter only)
 const createComplaint = async (req, res, next) => {
   try {
     const { title, description, category, location, priority, image } = req.body;
@@ -52,7 +55,7 @@ const createComplaint = async (req, res, next) => {
       });
     }
 
-    // Force default priority values for reporters
+    // Force default priority values for reporters (they cannot set these)
     const severity = 1;
     const safetyRisk = 1;
     const affectedPeople = 1;
@@ -109,6 +112,9 @@ const createComplaint = async (req, res, next) => {
   }
 };
 
+// @desc    Get my complaints (for reporter)
+// @route   GET /api/complaints/my
+// @access  Private
 const getMyComplaints = async (req, res, next) => {
   try {
     const complaints = await populateComplaint(
@@ -124,6 +130,9 @@ const getMyComplaints = async (req, res, next) => {
   }
 };
 
+// @desc    Get complaints based on role
+// @route   GET /api/complaints
+// @access  Private
 const getComplaints = async (req, res, next) => {
   try {
     let query = {};
@@ -149,6 +158,9 @@ const getComplaints = async (req, res, next) => {
   }
 };
 
+// @desc    Get single complaint by ID
+// @route   GET /api/complaints/:id
+// @access  Private
 const getComplaintById = async (req, res, next) => {
   try {
     const complaint = await populateComplaint(Complaint.findById(req.params.id));
@@ -177,6 +189,9 @@ const getComplaintById = async (req, res, next) => {
   }
 };
 
+// @desc    Update complaint status
+// @route   PATCH /api/complaints/:id/status
+// @access  Private (technician, supervisor, admin)
 const updateComplaintStatus = async (req, res, next) => {
   try {
     const { status, note } = req.body;
@@ -212,7 +227,6 @@ const updateComplaintStatus = async (req, res, next) => {
       return res.status(403).json({ message: 'You can only update complaints assigned to you' });
     }
 
-    const previousStatus = complaint.status;
     complaint.status = status;
     complaint.statusHistory.push({
       status,
@@ -220,16 +234,19 @@ const updateComplaintStatus = async (req, res, next) => {
       note: note || `Status updated to ${status}`,
     });
 
-    await complaint.save();
+    if (status === 'Resolved' && complaint.assignedTo) {
+      const assignedTechnician = await User.findById(complaint.assignedTo);
 
-    // Decrease workload when resolved
-    if (status === 'Resolved' && previousStatus !== 'Resolved' && complaint.assignedTo) {
-      const technician = await User.findById(complaint.assignedTo);
-      if (technician) {
-        technician.currentWorkload = Math.max(0, Number(technician.currentWorkload || 0) - 1);
-        await technician.save();
+      if (assignedTechnician) {
+        assignedTechnician.currentWorkload = Math.max(
+          0,
+          Number(assignedTechnician.currentWorkload || 0) - 1
+        );
+        await assignedTechnician.save();
       }
     }
+
+    await complaint.save();
 
     const updatedComplaint = await populateComplaint(Complaint.findById(complaint._id));
 
@@ -242,6 +259,9 @@ const updateComplaintStatus = async (req, res, next) => {
   }
 };
 
+// @desc    Assign complaint to technician
+// @route   PATCH /api/complaints/:id/assign
+// @access  Private (supervisor, admin)
 const assignComplaintToTechnician = async (req, res, next) => {
   try {
     const { technicianId, note } = req.body;
@@ -284,6 +304,9 @@ const assignComplaintToTechnician = async (req, res, next) => {
   }
 };
 
+// @desc    Get technician recommendations for pending complaints
+// @route   GET /api/complaints/recommendations
+// @access  Private (supervisor, admin)
 const getRecommendations = async (req, res, next) => {
   try {
     const pendingComplaints = await populateComplaint(
@@ -311,8 +334,42 @@ const getRecommendations = async (req, res, next) => {
   }
 };
 
+// Alias used by some routes
 const getComplaintRecommendations = getRecommendations;
 
+// @desc    Get evaluation summary (Priority-Aware vs FCFS)
+// @route   GET /api/complaints/evaluation
+// @access  Private (supervisor, admin)
+const getEvaluationSummary = async (req, res, next) => {
+  try {
+    const pendingComplaints = await populateComplaint(
+      Complaint.find({ status: { $in: ['Submitted', 'Reviewed'] } }).sort({
+        priorityScore: -1,
+        createdAt: -1,
+      })
+    );
+
+    const technicians = await User.find({ role: 'technician', isActive: true }).select(
+      'name role skills isAvailable currentWorkload'
+    );
+
+    const evaluation = comparePriorityAwareVsFCFS({
+      complaints: pendingComplaints,
+      technicians,
+    });
+
+    res.status(200).json(evaluation);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Alias so routes that import `getEvaluation` still work
+const getEvaluation = getEvaluationSummary;
+
+// @desc    Update priority assessment (supervisor)
+// @route   PATCH /api/complaints/:id/priority
+// @access  Private (supervisor, admin)
 const updateComplaintPriority = async (req, res, next) => {
   try {
     const { severity, safetyRisk, affectedPeople, waitingLevel, estimatedDuration } = req.body;
@@ -379,41 +436,6 @@ const updateComplaintPriority = async (req, res, next) => {
   }
 };
 
-const getEvaluation = async (req, res, next) => {
-  try {
-    const pendingComplaints = await populateComplaint(
-      Complaint.find({ status: { $in: ['Submitted', 'Reviewed'] } }).sort({ createdAt: 1 })
-    );
-
-    const technicians = await User.find({ role: 'technician', isActive: true }).select(
-      'name role skills isAvailable currentWorkload'
-    );
-
-    const priorityAware = generateRecommendations({
-      complaints: pendingComplaints,
-      technicians,
-    });
-
-    const fcfs = generateFCFSRecommendations({
-      complaints: pendingComplaints,
-      technicians,
-    });
-
-    res.status(200).json({
-      totalPending: pendingComplaints.length,
-      priorityAware,
-      fcfs,
-      summary: {
-        priorityAwareCount: priorityAware.length,
-        fcfsCount: fcfs.length,
-        note: 'Priority-Aware orders by priorityScore. FCFS orders by submission time.',
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
 module.exports = {
   createComplaint,
   getMyComplaints,
@@ -424,5 +446,6 @@ module.exports = {
   updateComplaintPriority,
   getRecommendations,
   getComplaintRecommendations,
-  getEvaluation,
+  getEvaluationSummary,
+  getEvaluation, // ← alias so routes that use getEvaluation work
 };
