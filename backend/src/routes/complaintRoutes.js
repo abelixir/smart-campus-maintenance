@@ -28,4 +28,5 @@ router.patch('/:id/assign', authorize('supervisor', 'admin'), assignComplaintToT
 router.patch('/:id/priority', authorize('supervisor', 'admin'), updateComplaintPriority);
 router.get('/:id', authorize('reporter', 'technician', 'supervisor', 'admin'), getComplaintById);
 
+
 module.exports = router;

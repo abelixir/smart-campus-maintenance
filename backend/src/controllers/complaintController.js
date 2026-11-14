@@ -52,6 +52,7 @@ const createComplaint = async (req, res, next) => {
       });
     }
 
+    // Force default priority values for reporters
     const severity = 1;
     const safetyRisk = 1;
     const affectedPeople = 1;
