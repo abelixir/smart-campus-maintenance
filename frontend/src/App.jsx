@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Admin from './pages/Admin';
 import ComplaintDetails from './pages/ComplaintDetails';
 import Dashboard from './pages/Dashboard';
+import Evaluation from './pages/Evaluation';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import MyComplaints from './pages/MyComplaints';
@@ -85,6 +86,7 @@ function AppShell() {
               <Route path="/my-complaints" element={<ProtectedRoute allowedRoles={['reporter']}><MyComplaints /></ProtectedRoute>} />
               <Route path="/complaint/:id" element={<ProtectedRoute allowedRoles={['reporter', 'technician', 'supervisor', 'admin']}><ComplaintDetails /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute allowedRoles={['reporter', 'technician', 'supervisor', 'admin']}><Profile /></ProtectedRoute>} />
+              <Route path="/evaluation" element={<ProtectedRoute allowedRoles={['supervisor', 'admin']}><Evaluation /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><Admin /></ProtectedRoute>} />
 
               <Route path="*" element={<Home />} />

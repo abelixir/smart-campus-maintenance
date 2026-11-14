@@ -264,10 +264,14 @@ const updateComplaintStatus = async (req, res, next) => {
 // @access  Private (supervisor, admin)
 const assignComplaintToTechnician = async (req, res, next) => {
   try {
-    const { technicianId, note } = req.body;
+    const { technicianId, note, isOverride = false, overrideReason, status } = req.body;
 
     if (!technicianId) {
       return res.status(400).json({ message: 'Technician ID is required' });
+    }
+
+    if (isOverride === true && (!overrideReason || !String(overrideReason).trim())) {
+      return res.status(400).json({ message: 'Override reason is required when approving an override.' });
     }
 
     const complaint = await Complaint.findById(req.params.id);
@@ -280,12 +284,17 @@ const assignComplaintToTechnician = async (req, res, next) => {
       return res.status(400).json({ message: 'A valid technician is required' });
     }
 
+    const nextStatus = ['Assigned', 'Scheduled'].includes(status) ? status : 'Assigned';
+    const historyNote = isOverride
+      ? `Override: ${overrideReason.trim()}${note ? ` | ${note}` : ''}`
+      : note || `Assigned to ${technician.name}`;
+
     complaint.assignedTo = technician._id;
-    complaint.status = 'Assigned';
+    complaint.status = nextStatus;
     complaint.statusHistory.push({
-      status: 'Assigned',
+      status: nextStatus,
       changedBy: req.user._id,
-      note: note || `Assigned to ${technician.name}`,
+      note: historyNote,
     });
 
     await complaint.save();

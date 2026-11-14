@@ -11,6 +11,7 @@ const {
   getRecommendations,
   getComplaintRecommendations,
   getEvaluation,
+  getEvaluationSummary,
 } = require('../controllers/complaintController');
 
 const router = express.Router();

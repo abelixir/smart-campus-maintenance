@@ -55,12 +55,14 @@ export default function Sidebar({ open, onToggle }) {
       return [
         { label: 'Dashboard', to: '/dashboard' },
         { label: 'All complaints', to: '/dashboard?view=all' },
+        { label: 'Evaluation', to: '/evaluation' },
         profileItem,
       ];
     }
 
     return [
       { label: 'Dashboard', to: '/dashboard' },
+      { label: 'Evaluation', to: '/evaluation' },
       { label: 'Users', to: '/admin?view=users' },
       { label: 'System overview', to: '/admin?view=overview' },
       profileItem,
