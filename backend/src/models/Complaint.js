@@ -128,14 +128,14 @@ const complaintSchema = new mongoose.Schema(
   }
 );
 
-complaintSchema.pre('validate', function (next) {
+// Fixed middleware (no next parameter)
+complaintSchema.pre('validate', function () {
   this.priorityScore = calculatePriorityScore({
     severity: this.severity,
     safetyRisk: this.safetyRisk,
     affectedPeople: this.affectedPeople,
     waitingLevel: this.waitingLevel,
   });
-  next();
 });
 
 module.exports = mongoose.model('Complaint', complaintSchema);
