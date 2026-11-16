@@ -215,10 +215,10 @@ export default function Admin() {
   }
 
   const totalSummaryCards = [
-    { label: 'Total complaints', value: stats.totals?.totalComplaints || 0 },
-    { label: 'Resolved', value: stats.totals?.resolvedComplaints || 0 },
-    { label: 'Pending', value: stats.totals?.pendingComplaints || 0 },
-    { label: 'Users', value: stats.totals?.totalUsers || users.length },
+    { label: 'Total complaints', value: stats.totals?.totalComplaints || 0, tint: 'bg-blue-100 text-blue-700', icon: '📊' },
+    { label: 'Resolved', value: stats.totals?.resolvedComplaints || 0, tint: 'bg-emerald-100 text-emerald-700', icon: '✅' },
+    { label: 'Pending', value: stats.totals?.pendingComplaints || 0, tint: 'bg-amber-100 text-amber-700', icon: '🕒' },
+    { label: 'Users', value: stats.totals?.totalUsers || users.length, tint: 'bg-violet-100 text-violet-700', icon: '👥' },
   ];
 
   return (
@@ -235,8 +235,15 @@ export default function Admin() {
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {totalSummaryCards.map((item) => (
           <Card key={item.label} hover className="p-5">
-            <p className="text-sm text-slate-500">{item.label}</p>
-            <div className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">{item.value}</div>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
+                <div className="mt-4 text-3xl font-bold tracking-[-0.06em] text-slate-900">{item.value}</div>
+              </div>
+              <div className={`flex h-11 w-11 items-center justify-center rounded-2xl text-lg ${item.tint}`}>
+                {item.icon}
+              </div>
+            </div>
           </Card>
         ))}
       </div>

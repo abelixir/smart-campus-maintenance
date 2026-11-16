@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import StatusBadge from '../components/ui/StatusBadge';
 
@@ -225,6 +226,40 @@ export default function Dashboard() {
     ['Submitted', 'Reviewed'].includes(item.status)
   );
 
+  const reporterSummaryCards = [
+    { label: 'Your complaints', value: reporterComplaints.length, icon: '📌', tint: 'bg-blue-100 text-blue-700' },
+    {
+      label: 'Open',
+      value: reporterComplaints.filter((i) => !['Resolved', 'Closed'].includes(i.status)).length,
+      icon: '🕒',
+      tint: 'bg-amber-100 text-amber-700',
+    },
+    {
+      label: 'Resolved',
+      value: reporterComplaints.filter((i) => i.status === 'Resolved').length,
+      icon: '✅',
+      tint: 'bg-emerald-100 text-emerald-700',
+    },
+  ];
+
+  const technicianSummaryCards = [
+    { label: 'Assigned work', value: assignedComplaints.length, icon: '🧰', tint: 'bg-blue-100 text-blue-700' },
+    { label: 'Open tasks', value: openAssignedComplaints.length, icon: '⚡', tint: 'bg-violet-100 text-violet-700' },
+    {
+      label: 'Resolved',
+      value: assignedComplaints.filter((i) => i.status === 'Resolved').length,
+      icon: '🏁',
+      tint: 'bg-emerald-100 text-emerald-700',
+    },
+  ];
+
+  const supervisorSummaryCards = [
+    { label: 'Total queue', value: pendingSupervisorComplaints.length, icon: '🧾', tint: 'bg-sky-100 text-sky-700' },
+    { label: 'Needs review', value: needsReview.length, icon: '🩺', tint: 'bg-amber-100 text-amber-700' },
+    { label: 'Recommendations', value: recommendations.length, icon: '🤖', tint: 'bg-violet-100 text-violet-700' },
+    { label: 'Technicians', value: users.length, icon: '👷', tint: 'bg-emerald-100 text-emerald-700' },
+  ];
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="mb-8 rounded-[30px] border border-slate-200 bg-white/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.04)] backdrop-blur-sm">
@@ -261,22 +296,19 @@ export default function Dashboard() {
       {role === 'reporter' && (
         <>
           <div className="grid gap-5 md:grid-cols-3">
-            <Card className="p-5">
-              <p className="text-sm text-slate-500">Your complaints</p>
-              <div className="mt-4 text-3xl font-bold text-slate-900">{reporterComplaints.length}</div>
-            </Card>
-            <Card className="p-5">
-              <p className="text-sm text-slate-500">Open</p>
-              <div className="mt-4 text-3xl font-bold text-slate-900">
-                {reporterComplaints.filter((i) => !['Resolved', 'Closed'].includes(i.status)).length}
-              </div>
-            </Card>
-            <Card className="p-5">
-              <p className="text-sm text-slate-500">Resolved</p>
-              <div className="mt-4 text-3xl font-bold text-slate-900">
-                {reporterComplaints.filter((i) => i.status === 'Resolved').length}
-              </div>
-            </Card>
+            {reporterSummaryCards.map((card) => (
+              <Card key={card.label} className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{card.label}</p>
+                    <div className="mt-4 text-3xl font-bold tracking-[-0.06em] text-slate-900">{card.value}</div>
+                  </div>
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-2xl text-lg ${card.tint}`}>
+                    {card.icon}
+                  </div>
+                </div>
+              </Card>
+            ))}
           </div>
 
           <Card className="mt-8 overflow-hidden p-0">
@@ -285,7 +317,9 @@ export default function Dashboard() {
             </div>
             <div className="divide-y divide-slate-200">
               {reporterComplaints.length === 0 ? (
-                <div className="px-5 py-10 text-center text-sm text-slate-500">No complaints yet.</div>
+                <div className="px-5 py-10 text-center text-sm text-slate-500">
+                  No complaints yet. Submit your first report to get started.
+                </div>
               ) : (
                 reporterComplaints.slice(0, 5).map((complaint) => (
                   <div
@@ -319,20 +353,19 @@ export default function Dashboard() {
       {role === 'technician' && (
         <>
           <div className="mb-6 grid gap-5 md:grid-cols-3">
-            <Card className="p-5">
-              <p className="text-sm text-slate-500">Assigned work</p>
-              <div className="mt-4 text-3xl font-bold text-slate-900">{assignedComplaints.length}</div>
-            </Card>
-            <Card className="p-5">
-              <p className="text-sm text-slate-500">Open tasks</p>
-              <div className="mt-4 text-3xl font-bold text-slate-900">{openAssignedComplaints.length}</div>
-            </Card>
-            <Card className="p-5">
-              <p className="text-sm text-slate-500">Resolved</p>
-              <div className="mt-4 text-3xl font-bold text-slate-900">
-                {assignedComplaints.filter((i) => i.status === 'Resolved').length}
-              </div>
-            </Card>
+            {technicianSummaryCards.map((card) => (
+              <Card key={card.label} className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{card.label}</p>
+                    <div className="mt-4 text-3xl font-bold tracking-[-0.06em] text-slate-900">{card.value}</div>
+                  </div>
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-2xl text-lg ${card.tint}`}>
+                    {card.icon}
+                  </div>
+                </div>
+              </Card>
+            ))}
           </div>
 
           <Card className="overflow-hidden p-0">
@@ -360,7 +393,7 @@ export default function Dashboard() {
             <div className="divide-y divide-slate-200">
               {technicianVisibleComplaints.length === 0 ? (
                 <div className="px-5 py-10 text-center text-sm text-slate-500">
-                  No tasks in this view.
+                  No tasks in this view. New assigned work will appear here.
                 </div>
               ) : (
                 technicianVisibleComplaints.map((complaint) => {
@@ -392,13 +425,14 @@ export default function Dashboard() {
                         />
 
                         {action ? (
-                          <button
+                          <Button
                             type="button"
+                            size="sm"
                             onClick={() => updateComplaintStatus(complaint._id, action.nextStatus)}
-                            className="rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
+                            className="min-w-[150px]"
                           >
                             {action.label}
-                          </button>
+                          </Button>
                         ) : null}
                       </div>
                     </div>
@@ -413,29 +447,25 @@ export default function Dashboard() {
       {/* Supervisor / Admin */}
       {(role === 'supervisor' || role === 'admin') && (
         <>
-          <div className="mb-6 grid gap-5 md:grid-cols-4">
-            <Card className="p-5">
-              <p className="text-sm text-slate-500">Total queue</p>
-              <div className="mt-4 text-3xl font-bold text-slate-900">
-                {pendingSupervisorComplaints.length}
-              </div>
-            </Card>
-            <Card className="p-5">
-              <p className="text-sm text-slate-500">Needs review</p>
-              <div className="mt-4 text-3xl font-bold text-slate-900">{needsReview.length}</div>
-            </Card>
-            <Card className="p-5">
-              <p className="text-sm text-slate-500">Recommendations</p>
-              <div className="mt-4 text-3xl font-bold text-slate-900">{recommendations.length}</div>
-            </Card>
-            <Card className="p-5">
-              <p className="text-sm text-slate-500">Technicians</p>
-              <div className="mt-4 text-3xl font-bold text-slate-900">{users.length}</div>
-            </Card>
+          <div className="mb-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {supervisorSummaryCards.map((card) => (
+              <Card key={card.label} className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{card.label}</p>
+                    <div className="mt-4 text-3xl font-bold tracking-[-0.06em] text-slate-900">{card.value}</div>
+                  </div>
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-2xl text-lg ${card.tint}`}>
+                    {card.icon}
+                  </div>
+                </div>
+              </Card>
+            ))}
           </div>
 
-          <Card className="mb-8 p-5">
-            <h2 className="text-lg font-semibold text-slate-900">Supervisor workflow</h2>
+          <Card className="mb-8 rounded-3xl border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-indigo-50 p-5 shadow-[0_18px_40px_rgba(59,130,246,0.05)]">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">Supervisor workflow</p>
+            <h2 className="mt-2 text-lg font-semibold text-slate-900">Operational checklist</h2>
             <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-slate-600">
               <li>Open pending complaints and set priority values.</li>
               <li>Save priority assessment and mark as Reviewed.</li>
@@ -466,8 +496,7 @@ export default function Dashboard() {
                         {complaint.title}
                       </Link>
                       <p className="mt-1 text-sm text-slate-500">
-                        {complaint.category?.name || 'No category'} •{' '}
-                        {complaint.location?.name || complaint.location}
+                        {complaint.category?.name || 'No category'} • {complaint.location?.name || complaint.location}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -477,7 +506,7 @@ export default function Dashboard() {
                       />
                       <Link
                         to={`/complaint/${complaint._id}`}
-                        className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
+                        className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700"
                       >
                         Review priority
                       </Link>
@@ -495,7 +524,7 @@ export default function Dashboard() {
             <div className="divide-y divide-slate-200">
               {recommendations.length === 0 ? (
                 <div className="px-5 py-8 text-center text-sm text-slate-500">
-                  No recommendations yet.
+                  No recommendations yet. Once priority analysis runs, suggestions appear here.
                 </div>
               ) : (
                 recommendations.map((item) => (
@@ -508,18 +537,19 @@ export default function Dashboard() {
                       <p className="mt-1 text-sm text-slate-500">
                         Priority Score: {item.priorityScore} • {item.reason}
                       </p>
-                      <p className="mt-1 text-sm text-blue-600">
-                        Recommended: {item.recommendedTechnicianName}
-                      </p>
+                      <p className="mt-1 text-sm text-blue-600">Recommended: {item.recommendedTechnicianName}</p>
                     </div>
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       {!item.requiresSupervisorAction && item.recommendedTechnicianId && (
-                        <button
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="primary"
                           onClick={() => approveRecommendation(item)}
-                          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
+                          className="min-w-[120px]"
                         >
-                          Approve recommendation
-                        </button>
+                          Approve
+                        </Button>
                       )}
                       <select
                         defaultValue=""
@@ -528,7 +558,7 @@ export default function Dashboard() {
                             assignComplaint(item.complaintId, e.target.value, true);
                           }
                         }}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-100"
                       >
                         <option value="">Override technician</option>
                         {users.map((tech) => (
@@ -542,7 +572,7 @@ export default function Dashboard() {
                       </select>
                       <Link
                         to={`/complaint/${item.complaintId}`}
-                        className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700"
+                        className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                       >
                         Open details
                       </Link>
@@ -560,27 +590,19 @@ export default function Dashboard() {
               </div>
               <div className="grid gap-4 p-5 md:grid-cols-3">
                 <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">
-                    Priority-aware
-                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">Priority-aware</p>
                   <p className="mt-3 text-2xl font-bold text-slate-900">
-                    {evaluation?.priorityAware?.assignments?.length ||
-                      evaluation?.priorityAware?.length ||
-                      0}
+                    {evaluation?.priorityAware?.assignments?.length || evaluation?.priorityAware?.length || 0}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-700">
-                    FCFS
-                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-700">FCFS</p>
                   <p className="mt-3 text-2xl font-bold text-slate-900">
                     {evaluation?.fcfs?.assignments?.length || evaluation?.fcfs?.length || 0}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">
-                    Pending
-                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">Pending</p>
                   <p className="mt-3 text-2xl font-bold text-slate-900">
                     {evaluation?.totalPending || needsReview.length}
                   </p>
@@ -607,9 +629,7 @@ export default function Dashboard() {
                       {complaint.title}
                     </Link>
                     <p className="mt-1 text-sm text-slate-500">
-                      {complaint.reporter?.name || 'Unknown'} •{' '}
-                      {complaint.category?.name || 'No category'} •{' '}
-                      {complaint.location?.name || complaint.location}
+                      {complaint.reporter?.name || 'Unknown'} • {complaint.category?.name || 'No category'} • {complaint.location?.name || complaint.location}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -630,7 +650,7 @@ export default function Dashboard() {
                             updateComplaintStatus(complaint._id, e.target.value);
                           }
                         }}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-100"
                       >
                         <option value="">Next status</option>
                         {getSupervisorNextStatuses(complaint.status).map((status) => (
