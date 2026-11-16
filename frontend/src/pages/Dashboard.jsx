@@ -25,15 +25,6 @@ const getStatusLabel = (status) => {
   return status;
 };
 
-const formatDate = (value) => {
-  if (!value) return 'N/A';
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(value));
-};
-
 export default function Dashboard() {
   const { user, token } = useAuth();
   const [complaints, setComplaints] = useState([]);
@@ -42,22 +33,17 @@ export default function Dashboard() {
   const [evaluation, setEvaluation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
 
   const role = user?.role || 'reporter';
 
   const fetchComplaints = async () => {
     try {
       const response = await fetch('http://localhost:5000/api/complaints', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data?.message || 'Unable to load complaints.');
-      }
-
+      if (!response.ok) throw new Error(data?.message || 'Unable to load complaints.');
       setComplaints(data.complaints || []);
     } catch (err) {
       setError(err.message || 'Failed to load complaints.');
@@ -66,19 +52,12 @@ export default function Dashboard() {
 
   const fetchUsers = async () => {
     if (!['supervisor', 'admin'].includes(role)) return;
-
     try {
       const response = await fetch('http://localhost:5000/api/admin/users', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data?.message || 'Unable to load technicians.');
-      }
-
+      if (!response.ok) throw new Error(data?.message || 'Unable to load technicians.');
       const technicians = (data.users || []).filter((person) => person.role === 'technician');
       setUsers(technicians);
     } catch (err) {
@@ -88,20 +67,12 @@ export default function Dashboard() {
 
   const fetchRecommendations = async () => {
     if (!['supervisor', 'admin'].includes(role)) return;
-
     try {
       const response = await fetch('http://localhost:5000/api/complaints/recommendations', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data?.message || 'Unable to load recommendations.');
-      }
-
+      if (!response.ok) throw new Error(data?.message || 'Unable to load recommendations.');
       setRecommendations(data.recommendations || []);
     } catch (err) {
       setError(err.message || 'Failed to load technician recommendations.');
@@ -110,37 +81,30 @@ export default function Dashboard() {
 
   const fetchEvaluation = async () => {
     if (!['supervisor', 'admin'].includes(role)) return;
-
     try {
       const response = await fetch('http://localhost:5000/api/complaints/evaluation', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data?.message || 'Unable to load comparison data.');
-      }
-
+      if (!response.ok) throw new Error(data?.message || 'Unable to load comparison data.');
       setEvaluation(data);
     } catch (err) {
-      // Do not break the whole dashboard if evaluation fails
       console.error(err);
     }
   };
 
+  const reloadSupervisorData = async () => {
+    await Promise.all([fetchComplaints(), fetchUsers(), fetchRecommendations(), fetchEvaluation()]);
+  };
+
   useEffect(() => {
     if (!token) return;
-
     const loadData = async () => {
       setLoading(true);
       setError('');
-      await Promise.all([fetchComplaints(), fetchUsers(), fetchRecommendations(), fetchEvaluation()]);
+      await reloadSupervisorData();
       setLoading(false);
     };
-
     loadData();
   }, [token, role]);
 
@@ -154,22 +118,16 @@ export default function Dashboard() {
         },
         body: JSON.stringify({ status: newStatus, note: `Status changed to ${newStatus}` }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data?.message || 'Unable to update complaint status.');
-      }
-
-      setComplaints((prev) =>
-        prev.map((item) => (item._id === complaintId ? { ...item, status: newStatus } : item))
-      );
+      if (!response.ok) throw new Error(data?.message || 'Unable to update complaint status.');
+      setActionMessage(`Status updated to ${newStatus}`);
+      await reloadSupervisorData();
     } catch (err) {
       setError(err.message || 'Failed to update complaint status.');
     }
   };
 
-  const assignComplaint = async (complaintId, technicianId) => {
+  const assignComplaint = async (complaintId, technicianId, isOverride = false) => {
     try {
       const response = await fetch(`http://localhost:5000/api/complaints/${complaintId}/assign`, {
         method: 'PATCH',
@@ -177,25 +135,17 @@ export default function Dashboard() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ technicianId, note: 'Complaint assigned to technician' }),
+        body: JSON.stringify({
+          technicianId,
+          note: isOverride ? 'Manual override assignment' : 'Assigned from recommendation',
+          isOverride,
+          overrideReason: isOverride ? 'Supervisor selected a different technician' : undefined,
+        }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data?.message || 'Unable to assign complaint.');
-      }
-
-      setComplaints((prev) =>
-        prev.map((item) =>
-          item._id === complaintId
-            ? { ...item, assignedTo: data.complaint.assignedTo, status: 'Assigned' }
-            : item
-        )
-      );
-
-      setRecommendations((prev) => prev.filter((item) => item.complaintId !== complaintId));
-
+      if (!response.ok) throw new Error(data?.message || 'Unable to assign complaint.');
+      setActionMessage(isOverride ? 'Manual assignment completed' : 'Recommendation approved');
+      await reloadSupervisorData();
       return data.complaint;
     } catch (err) {
       setError(err.message || 'Failed to assign complaint.');
@@ -204,23 +154,8 @@ export default function Dashboard() {
   };
 
   const approveRecommendation = async (recommendation) => {
-    if (
-      !recommendation ||
-      recommendation.requiresSupervisorAction ||
-      !recommendation.recommendedTechnicianId
-    ) {
-      return;
-    }
-
-    const approvedComplaint = await assignComplaint(
-      recommendation.complaintId,
-      recommendation.recommendedTechnicianId
-    );
-
-    if (approvedComplaint) {
-      await fetchRecommendations();
-      await fetchEvaluation();
-    }
+    if (!recommendation?.recommendedTechnicianId || recommendation.requiresSupervisorAction) return;
+    await assignComplaint(recommendation.complaintId, recommendation.recommendedTechnicianId, false);
   };
 
   if (loading) {
@@ -244,7 +179,10 @@ export default function Dashboard() {
     (item) => !['Resolved', 'Closed'].includes(item.status)
   );
   const pendingSupervisorComplaints = complaints.filter(
-    (item) => !['Resolved', 'Closed'].includes(item.status)
+    (item) => !['Resolved', 'Closed', 'Rejected'].includes(item.status)
+  );
+  const needsReview = complaints.filter((item) =>
+    ['Submitted', 'Reviewed'].includes(item.status)
   );
 
   return (
@@ -260,7 +198,7 @@ export default function Dashboard() {
           {role === 'reporter' && (
             <Link
               to="/submit-complaint"
-              className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(37,99,235,0.22)] transition hover:translate-y-[-1px]"
+              className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white"
             >
               Submit new complaint
             </Link>
@@ -273,95 +211,52 @@ export default function Dashboard() {
           {error}
         </div>
       )}
+      {actionMessage && (
+        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+          {actionMessage}
+        </div>
+      )}
 
-      {/* Reporter Dashboard */}
+      {/* Reporter */}
       {role === 'reporter' && (
         <>
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            <Card hover className="p-5">
+          <div className="grid gap-5 md:grid-cols-3">
+            <Card className="p-5">
               <p className="text-sm text-slate-500">Your complaints</p>
-              <div className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">
-                {reporterComplaints.length}
-              </div>
+              <div className="mt-4 text-3xl font-bold text-slate-900">{reporterComplaints.length}</div>
             </Card>
-            <Card hover className="p-5">
+            <Card className="p-5">
               <p className="text-sm text-slate-500">Open</p>
-              <div className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">
-                {reporterComplaints.filter((item) => !['Resolved', 'Closed'].includes(item.status)).length}
+              <div className="mt-4 text-3xl font-bold text-slate-900">
+                {reporterComplaints.filter((i) => !['Resolved', 'Closed'].includes(i.status)).length}
               </div>
             </Card>
-            <Card hover className="p-5">
+            <Card className="p-5">
               <p className="text-sm text-slate-500">Resolved</p>
-              <div className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">
-                {reporterComplaints.filter((item) => item.status === 'Resolved').length}
+              <div className="mt-4 text-3xl font-bold text-slate-900">
+                {reporterComplaints.filter((i) => i.status === 'Resolved').length}
               </div>
             </Card>
           </div>
-
-          <Card className="mt-8 overflow-hidden p-0">
-            <div className="border-b border-slate-200 px-5 py-4">
-              <h2 className="text-lg font-semibold text-slate-900">Recent complaints</h2>
-            </div>
-            <div className="divide-y divide-slate-200">
-              {reporterComplaints.length === 0 ? (
-                <div className="px-5 py-10 text-center">
-                  <p className="text-base font-medium text-slate-900">No complaints yet</p>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Your latest reports will appear here once you submit one.
-                  </p>
-                </div>
-              ) : (
-                reporterComplaints.slice(0, 5).map((complaint) => (
-                  <div
-                    key={complaint._id}
-                    className="flex flex-col gap-3 px-5 py-4 md:flex-row md:items-center md:justify-between"
-                  >
-                    <div>
-                      <Link
-                        to={`/complaint/${complaint._id}`}
-                        className="text-sm font-semibold text-slate-900 hover:text-blue-600"
-                      >
-                        {complaint.title}
-                      </Link>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {complaint.location?.name || complaint.location}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <StatusBadge
-                        label={getStatusLabel(complaint.status)}
-                        type={getStatusBadgeType(complaint.status)}
-                      />
-                      <StatusBadge label={complaint.priority} type={complaint.priority} />
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
         </>
       )}
 
-      {/* Technician Dashboard */}
+      {/* Technician */}
       {role === 'technician' && (
         <>
           <div className="mb-6 grid gap-5 md:grid-cols-3">
-            <Card hover className="p-5">
+            <Card className="p-5">
               <p className="text-sm text-slate-500">Assigned work</p>
-              <div className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">
-                {assignedComplaints.length}
-              </div>
+              <div className="mt-4 text-3xl font-bold text-slate-900">{assignedComplaints.length}</div>
             </Card>
-            <Card hover className="p-5">
+            <Card className="p-5">
               <p className="text-sm text-slate-500">Open tasks</p>
-              <div className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">
-                {openAssignedComplaints.length}
-              </div>
+              <div className="mt-4 text-3xl font-bold text-slate-900">{openAssignedComplaints.length}</div>
             </Card>
-            <Card hover className="p-5">
+            <Card className="p-5">
               <p className="text-sm text-slate-500">Resolved</p>
-              <div className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">
-                {assignedComplaints.filter((item) => item.status === 'Resolved').length}
+              <div className="mt-4 text-3xl font-bold text-slate-900">
+                {assignedComplaints.filter((i) => i.status === 'Resolved').length}
               </div>
             </Card>
           </div>
@@ -372,43 +267,25 @@ export default function Dashboard() {
             </div>
             <div className="divide-y divide-slate-200">
               {assignedComplaints.length === 0 ? (
-                <div className="px-5 py-10 text-center">
-                  <p className="text-base font-medium text-slate-900">No assignments</p>
-                  <p className="mt-2 text-sm text-slate-500">
-                    New tasks assigned to you will appear here.
-                  </p>
-                </div>
+                <div className="px-5 py-10 text-center text-sm text-slate-500">No assignments yet.</div>
               ) : (
                 assignedComplaints.map((complaint) => (
-                  <div
-                    key={complaint._id}
-                    className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between"
-                  >
+                  <div key={complaint._id} className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                      <Link
-                        to={`/complaint/${complaint._id}`}
-                        className="text-sm font-semibold text-slate-900 hover:text-blue-600"
-                      >
+                      <Link to={`/complaint/${complaint._id}`} className="text-sm font-semibold text-slate-900 hover:text-blue-600">
                         {complaint.title}
                       </Link>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {complaint.location?.name || complaint.location}
-                      </p>
+                      <p className="mt-1 text-sm text-slate-500">{complaint.location?.name || complaint.location}</p>
                     </div>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <StatusBadge
-                        label={getStatusLabel(complaint.status)}
-                        type={getStatusBadgeType(complaint.status)}
-                      />
+                    <div className="flex items-center gap-3">
+                      <StatusBadge label={getStatusLabel(complaint.status)} type={getStatusBadgeType(complaint.status)} />
                       <select
                         value={complaint.status}
                         onChange={(e) => updateComplaintStatus(complaint._id, e.target.value)}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500"
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
                       >
                         {statusOptions.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
+                          <option key={status} value={status}>{status}</option>
                         ))}
                       </select>
                     </div>
@@ -420,33 +297,77 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* Supervisor / Admin Dashboard */}
+      {/* Supervisor / Admin */}
       {(role === 'supervisor' || role === 'admin') && (
         <>
-          <div className="mb-6 grid gap-5 md:grid-cols-3">
-            <Card hover className="p-5">
+          <div className="mb-6 grid gap-5 md:grid-cols-4">
+            <Card className="p-5">
               <p className="text-sm text-slate-500">Total queue</p>
-              <div className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">
-                {pendingSupervisorComplaints.length}
-              </div>
+              <div className="mt-4 text-3xl font-bold text-slate-900">{pendingSupervisorComplaints.length}</div>
             </Card>
-            <Card hover className="p-5">
-              <p className="text-sm text-slate-500">Pending</p>
-              <div className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">
-                {
-                  pendingSupervisorComplaints.filter((item) =>
-                    ['Submitted', 'Reviewed'].includes(item.status)
-                  ).length
-                }
-              </div>
+            <Card className="p-5">
+              <p className="text-sm text-slate-500">Needs review</p>
+              <div className="mt-4 text-3xl font-bold text-slate-900">{needsReview.length}</div>
             </Card>
-            <Card hover className="p-5">
+            <Card className="p-5">
+              <p className="text-sm text-slate-500">Recommendations</p>
+              <div className="mt-4 text-3xl font-bold text-slate-900">{recommendations.length}</div>
+            </Card>
+            <Card className="p-5">
               <p className="text-sm text-slate-500">Technicians</p>
-              <div className="mt-4 text-3xl font-bold tracking-[-0.05em] text-slate-900">
-                {users.length}
-              </div>
+              <div className="mt-4 text-3xl font-bold text-slate-900">{users.length}</div>
             </Card>
           </div>
+
+          {/* Step guide */}
+          <Card className="mb-8 p-5">
+            <h2 className="text-lg font-semibold text-slate-900">Supervisor workflow</h2>
+            <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-slate-600">
+              <li>Open each pending complaint and set Severity, Safety Risk, Affected People, Waiting Level.</li>
+              <li>Save priority assessment and mark as Reviewed.</li>
+              <li>Return here to see technician recommendations.</li>
+              <li>Approve recommendation or manually override technician.</li>
+            </ol>
+          </Card>
+
+          {/* Needs review list */}
+          <Card className="mb-8 overflow-hidden p-0">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <h2 className="text-lg font-semibold text-slate-900">Complaints needing priority review</h2>
+            </div>
+            <div className="divide-y divide-slate-200">
+              {needsReview.length === 0 ? (
+                <div className="px-5 py-8 text-center text-sm text-slate-500">
+                  No complaints waiting for priority review.
+                </div>
+              ) : (
+                needsReview.map((complaint) => (
+                  <div key={complaint._id} className="flex flex-col gap-3 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <Link to={`/complaint/${complaint._id}`} className="text-sm font-semibold text-slate-900 hover:text-blue-600">
+                        {complaint.title}
+                      </Link>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {complaint.category?.name || 'No category'} • {complaint.location?.name || complaint.location}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <StatusBadge label={getStatusLabel(complaint.status)} type={getStatusBadgeType(complaint.status)} />
+                      <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+                        Score: {Number(complaint.priorityScore || 1).toFixed(2)}
+                      </span>
+                      <Link
+                        to={`/complaint/${complaint._id}`}
+                        className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
+                      >
+                        Review priority
+                      </Link>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
 
           {/* Recommendations */}
           <Card className="mb-8 overflow-hidden p-0">
@@ -455,15 +376,12 @@ export default function Dashboard() {
             </div>
             <div className="divide-y divide-slate-200">
               {recommendations.length === 0 ? (
-                <div className="px-5 py-10 text-center text-sm text-slate-500">
-                  No pending recommendations right now.
+                <div className="px-5 py-8 text-center text-sm text-slate-500">
+                  No recommendations yet. Review complaint priorities first and make sure technician skills match categories (Electrical, Plumbing, HVAC...).
                 </div>
               ) : (
                 recommendations.map((item) => (
-                  <div
-                    key={item.complaintId}
-                    className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between"
-                  >
+                  <div key={item.complaintId} className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <p className="text-sm font-semibold text-slate-900">{item.complaintTitle}</p>
                       <p className="mt-1 text-sm text-slate-500">
@@ -477,7 +395,7 @@ export default function Dashboard() {
                       {!item.requiresSupervisorAction && item.recommendedTechnicianId && (
                         <button
                           onClick={() => approveRecommendation(item)}
-                          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
                         >
                           Approve recommendation
                         </button>
@@ -486,18 +404,24 @@ export default function Dashboard() {
                         defaultValue=""
                         onChange={(e) => {
                           if (e.target.value) {
-                            assignComplaint(item.complaintId, e.target.value);
+                            assignComplaint(item.complaintId, e.target.value, true);
                           }
                         }}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500"
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
                       >
                         <option value="">Override technician</option>
                         {users.map((tech) => (
                           <option key={tech._id} value={tech._id}>
-                            {tech.name}
+                            {tech.name} {Array.isArray(tech.skills) && tech.skills.length ? `(${tech.skills.join(', ')})` : ''}
                           </option>
                         ))}
                       </select>
+                      <Link
+                        to={`/complaint/${item.complaintId}`}
+                        className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700"
+                      >
+                        Open details
+                      </Link>
                     </div>
                   </div>
                 ))
@@ -505,52 +429,34 @@ export default function Dashboard() {
             </div>
           </Card>
 
-          {/* Evaluation (safe version) */}
+          {/* Evaluation */}
           {evaluation && (
             <Card className="mb-8 overflow-hidden p-0">
               <div className="border-b border-slate-200 px-5 py-4">
-                <h2 className="text-lg font-semibold text-slate-900">
-                  Priority-aware vs FCFS comparison
-                </h2>
+                <h2 className="text-lg font-semibold text-slate-900">Priority-aware vs FCFS</h2>
               </div>
-
               <div className="grid gap-4 p-5 md:grid-cols-3">
                 <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">
-                    Priority-aware
-                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">Priority-aware</p>
                   <p className="mt-3 text-2xl font-bold text-slate-900">
-                    {evaluation?.priorityAware?.length || 0}
+                    {evaluation?.priorityAware?.assignments?.length || evaluation?.priorityAware?.length || 0}
                   </p>
-                  <p className="mt-2 text-sm text-slate-600">Recommended items</p>
+                  <p className="mt-2 text-sm text-slate-600">Assignments generated</p>
                 </div>
-
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-700">
-                    FCFS
-                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-700">FCFS</p>
                   <p className="mt-3 text-2xl font-bold text-slate-900">
-                    {evaluation?.fcfs?.length || 0}
+                    {evaluation?.fcfs?.assignments?.length || evaluation?.fcfs?.length || 0}
                   </p>
-                  <p className="mt-2 text-sm text-slate-600">Recommended items</p>
+                  <p className="mt-2 text-sm text-slate-600">Assignments generated</p>
                 </div>
-
                 <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">
-                    Pending
-                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">Pending</p>
                   <p className="mt-3 text-2xl font-bold text-slate-900">
-                    {evaluation?.totalPending || 0}
+                    {evaluation?.totalPending || needsReview.length}
                   </p>
-                  <p className="mt-2 text-sm text-slate-600">Total pending complaints</p>
+                  <p className="mt-2 text-sm text-slate-600">Waiting for scheduling</p>
                 </div>
-              </div>
-
-              <div className="border-t border-slate-200 p-5">
-                <p className="text-sm text-slate-600">
-                  {evaluation?.summary?.note ||
-                    'Priority-Aware orders by priorityScore. FCFS orders by submission time.'}
-                </p>
               </div>
             </Card>
           )}
@@ -561,40 +467,24 @@ export default function Dashboard() {
               <h2 className="text-lg font-semibold text-slate-900">All complaints</h2>
             </div>
             <div className="divide-y divide-slate-200">
-              {complaints.length === 0 ? (
-                <div className="px-5 py-10 text-center text-sm text-slate-500">
-                  No complaints found.
-                </div>
-              ) : (
-                complaints.map((complaint) => (
-                  <div
-                    key={complaint._id}
-                    className="flex flex-col gap-3 px-5 py-4 lg:flex-row lg:items-center lg:justify-between"
-                  >
-                    <div>
-                      <Link
-                        to={`/complaint/${complaint._id}`}
-                        className="text-sm font-semibold text-slate-900 hover:text-blue-600"
-                      >
-                        {complaint.title}
-                      </Link>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {complaint.reporter?.name || 'Unknown'} •{' '}
-                        {complaint.location?.name || complaint.location}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <StatusBadge
-                        label={getStatusLabel(complaint.status)}
-                        type={getStatusBadgeType(complaint.status)}
-                      />
-                      <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                        Score: {complaint.priorityScore ?? '-'}
-                      </span>
-                    </div>
+              {complaints.map((complaint) => (
+                <div key={complaint._id} className="flex flex-col gap-3 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <Link to={`/complaint/${complaint._id}`} className="text-sm font-semibold text-slate-900 hover:text-blue-600">
+                      {complaint.title}
+                    </Link>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {complaint.reporter?.name || 'Unknown'} • {complaint.category?.name || 'No category'} • {complaint.location?.name || complaint.location}
+                    </p>
                   </div>
-                ))
-              )}
+                  <div className="flex items-center gap-3">
+                    <StatusBadge label={getStatusLabel(complaint.status)} type={getStatusBadgeType(complaint.status)} />
+                    <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+                      Score: {Number(complaint.priorityScore || 1).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </Card>
         </>
