@@ -189,6 +189,22 @@ const getComplaintById = async (req, res, next) => {
   }
 };
 
+const getAllowedStatusTransitions = (role, currentStatus) => {
+  if (role === 'technician') {
+    if (currentStatus === 'Assigned') return ['In Progress'];
+    if (currentStatus === 'In Progress') return ['Resolved'];
+    return [];
+  }
+
+  if (currentStatus === 'Submitted') return ['Reviewed', 'Rejected'];
+  if (currentStatus === 'Reviewed') return ['Scheduled', 'Rejected'];
+  if (currentStatus === 'Scheduled') return ['Assigned', 'Rejected'];
+  if (currentStatus === 'Assigned') return ['In Progress', 'Rejected'];
+  if (currentStatus === 'In Progress') return ['Resolved', 'Rejected'];
+  if (currentStatus === 'Resolved') return ['Closed'];
+  return [];
+};
+
 // @desc    Update complaint status
 // @route   PATCH /api/complaints/:id/status
 // @access  Private (technician, supervisor, admin)
@@ -225,6 +241,35 @@ const updateComplaintStatus = async (req, res, next) => {
       complaint.assignedTo?.toString() !== req.user._id.toString()
     ) {
       return res.status(403).json({ message: 'You can only update complaints assigned to you' });
+    }
+
+    const allowedTransitions = getAllowedStatusTransitions(req.user.role, complaint.status);
+
+    if (
+      req.user.role === 'technician' &&
+      !allowedTransitions.includes(status)
+    ) {
+      return res.status(400).json({
+        message: `Invalid status transition from ${complaint.status} to ${status} for your role`,
+      });
+    }
+
+    if (
+      (req.user.role === 'supervisor' || req.user.role === 'admin') &&
+      !['Reviewed', 'Scheduled', 'Assigned', 'In Progress', 'Resolved', 'Closed', 'Rejected'].includes(status)
+    ) {
+      return res.status(400).json({
+        message: `Invalid status transition from ${complaint.status} to ${status} for your role`,
+      });
+    }
+
+    if (
+      (req.user.role === 'supervisor' || req.user.role === 'admin') &&
+      !allowedTransitions.includes(status)
+    ) {
+      return res.status(400).json({
+        message: `Invalid status transition from ${complaint.status} to ${status} for your role`,
+      });
     }
 
     complaint.status = status;

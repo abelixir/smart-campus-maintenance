@@ -31,12 +31,11 @@ export default function Sidebar({ open, onToggle }) {
   };
 
   const navItems = useMemo(() => {
-    const baseItems = [{ label: 'Dashboard', to: '/dashboard' }];
     const profileItem = { label: 'Profile', to: '/profile' };
 
     if (role === 'reporter') {
       return [
-        ...baseItems,
+        { label: 'Dashboard', to: '/dashboard' },
         { label: 'Submit complaint', to: '/submit-complaint' },
         { label: 'My complaints', to: '/my-complaints' },
         profileItem,
@@ -45,8 +44,7 @@ export default function Sidebar({ open, onToggle }) {
 
     if (role === 'technician') {
       return [
-        { label: 'Dashboard', to: '/dashboard' },
-        { label: 'My assigned tasks', to: '/dashboard?view=assigned' },
+        { label: 'My Tasks', to: '/dashboard' },
         profileItem,
       ];
     }
@@ -54,7 +52,6 @@ export default function Sidebar({ open, onToggle }) {
     if (role === 'supervisor') {
       return [
         { label: 'Dashboard', to: '/dashboard' },
-        { label: 'All complaints', to: '/dashboard?view=all' },
         { label: 'Evaluation', to: '/evaluation' },
         profileItem,
       ];
@@ -63,8 +60,7 @@ export default function Sidebar({ open, onToggle }) {
     return [
       { label: 'Dashboard', to: '/dashboard' },
       { label: 'Evaluation', to: '/evaluation' },
-      { label: 'Users', to: '/admin?view=users' },
-      { label: 'System overview', to: '/admin?view=overview' },
+      { label: 'Users / Admin', to: '/admin?view=users' },
       profileItem,
     ];
   }, [role]);

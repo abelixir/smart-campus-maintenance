@@ -25,6 +25,28 @@ const getStatusLabel = (status) => {
   return status;
 };
 
+const getTechnicianAction = (status) => {
+  if (status === 'Assigned') {
+    return { label: 'Start Work', nextStatus: 'In Progress' };
+  }
+
+  if (status === 'In Progress') {
+    return { label: 'Mark as Resolved', nextStatus: 'Resolved' };
+  }
+
+  return null;
+};
+
+const getSupervisorNextStatuses = (status) => {
+  if (status === 'Submitted') return ['Reviewed', 'Rejected'];
+  if (status === 'Reviewed') return ['Scheduled', 'Rejected'];
+  if (status === 'Scheduled') return ['Assigned', 'Rejected'];
+  if (status === 'Assigned') return ['In Progress', 'Rejected'];
+  if (status === 'In Progress') return ['Resolved', 'Rejected'];
+  if (status === 'Resolved') return ['Closed'];
+  return [];
+};
+
 export default function Dashboard() {
   const { user, token } = useAuth();
   const [complaints, setComplaints] = useState([]);
@@ -34,6 +56,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionMessage, setActionMessage] = useState('');
+  const [technicianFilter, setTechnicianFilter] = useState('open');
 
   const role = user?.role || 'reporter';
   const currentUserId = String(user?.id || user?._id || '');
@@ -188,6 +211,12 @@ export default function Dashboard() {
     (item) => !['Resolved', 'Closed'].includes(item.status)
   );
 
+  const technicianVisibleComplaints = assignedComplaints.filter((item) => {
+    if (technicianFilter === 'open') return ['Assigned', 'In Progress'].includes(item.status);
+    if (technicianFilter === 'resolved') return ['Resolved', 'Closed'].includes(item.status);
+    return true;
+  });
+
   const pendingSupervisorComplaints = complaints.filter(
     (item) => !['Resolved', 'Closed', 'Rejected'].includes(item.status)
   );
@@ -308,47 +337,73 @@ export default function Dashboard() {
 
           <Card className="overflow-hidden p-0">
             <div className="border-b border-slate-200 px-5 py-4">
-              <h2 className="text-lg font-semibold text-slate-900">Assigned complaints</h2>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="text-lg font-semibold text-slate-900">My Tasks</h2>
+                <div className="inline-flex rounded-full bg-slate-100 p-1">
+                  {['open', 'resolved', 'all'].map((filter) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      onClick={() => setTechnicianFilter(filter)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize transition ${
+                        technicianFilter === filter
+                          ? 'bg-white text-slate-900 shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {filter === 'open' ? 'Open' : filter === 'resolved' ? 'Resolved' : 'All'}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="divide-y divide-slate-200">
-              {assignedComplaints.length === 0 ? (
-                <div className="px-5 py-10 text-center text-sm text-slate-500">No assignments yet.</div>
+              {technicianVisibleComplaints.length === 0 ? (
+                <div className="px-5 py-10 text-center text-sm text-slate-500">
+                  No tasks in this view.
+                </div>
               ) : (
-                assignedComplaints.map((complaint) => (
-                  <div
-                    key={complaint._id}
-                    className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between"
-                  >
-                    <div>
-                      <Link
-                        to={`/complaint/${complaint._id}`}
-                        className="text-sm font-semibold text-slate-900 hover:text-blue-600"
-                      >
-                        {complaint.title}
-                      </Link>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {complaint.location?.name || complaint.location}
-                      </p>
+                technicianVisibleComplaints.map((complaint) => {
+                  const action = getTechnicianAction(complaint.status);
+
+                  return (
+                    <div
+                      key={complaint._id}
+                      className="flex flex-col gap-4 px-5 py-4 xl:flex-row xl:items-center xl:justify-between"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          to={`/complaint/${complaint._id}`}
+                          className="text-base font-semibold text-slate-900 hover:text-blue-600"
+                        >
+                          {complaint.title}
+                        </Link>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                          <span>{complaint.location?.name || complaint.location || 'Campus location'}</span>
+                          <span>•</span>
+                          <span>Priority score: {Number(complaint.priorityScore || 0).toFixed(2)}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3 xl:justify-end">
+                        <StatusBadge
+                          label={getStatusLabel(complaint.status)}
+                          type={getStatusBadgeType(complaint.status)}
+                        />
+
+                        {action ? (
+                          <button
+                            type="button"
+                            onClick={() => updateComplaintStatus(complaint._id, action.nextStatus)}
+                            className="rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
+                          >
+                            {action.label}
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <StatusBadge
-                        label={getStatusLabel(complaint.status)}
-                        type={getStatusBadgeType(complaint.status)}
-                      />
-                      <select
-                        value={complaint.status}
-                        onChange={(e) => updateComplaintStatus(complaint._id, e.target.value)}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                      >
-                        {statusOptions.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </Card>
@@ -565,6 +620,26 @@ export default function Dashboard() {
                     <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
                       Score: {Number(complaint.priorityScore || 1).toFixed(2)}
                     </span>
+                    {['Submitted', 'Reviewed', 'Scheduled', 'Assigned', 'In Progress', 'Resolved'].includes(
+                      complaint.status
+                    ) && (
+                      <select
+                        defaultValue=""
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            updateComplaintStatus(complaint._id, e.target.value);
+                          }
+                        }}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                      >
+                        <option value="">Next status</option>
+                        {getSupervisorNextStatuses(complaint.status).map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 </div>
               ))}
