@@ -57,10 +57,12 @@ export default function Sidebar({ open, onToggle }) {
       ];
     }
 
+    // admin
     return [
       { label: 'Dashboard', to: '/dashboard' },
       { label: 'Evaluation', to: '/evaluation' },
-      { label: 'Users / Admin', to: '/admin?view=users' },
+      { label: 'Users', to: '/admin?view=users' },
+      { label: 'System overview', to: '/admin?view=overview' },
       profileItem,
     ];
   }, [role]);
